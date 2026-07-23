@@ -2,111 +2,168 @@ import React, { useState } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Platform, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
-  Sprout, 
-  Sliders, 
-  Map, 
-  MessageSquare, 
-  Camera 
+  Home, 
+  BarChart3, 
+  Camera, 
+  ShoppingCart, 
+  User
 } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useProfile } from '../context/ProfileContext';
 
-// Import Screens
+// Core Screens
 import SplashScreen from '../screens/SplashScreen';
+import GlassLoginScreen from '../screens/GlassLoginScreen';
 import LanguageSelectionScreen from '../screens/LanguageSelectionScreen';
 import ProfileOnboardingScreen from '../screens/ProfileOnboardingScreen';
 import HomeDashboardScreen from '../screens/HomeDashboardScreen';
-import TwinSimulatorScreen from '../screens/TwinSimulatorScreen';
 import GISMapScreen from '../screens/GISMapScreen';
-import AIChatScreen from '../screens/AIChatScreen';
 import VisionScannerScreen from '../screens/VisionScannerScreen';
+import SecretProfileScreen from '../screens/SecretProfileScreen';
+import AIFarmerChatScreen from '../screens/AIFarmerChatScreen';
+
+// 10 Dedicated Smart Tool Feature Screens
+import CropDoctorScreen from '../screens/CropDoctorScreen';
+import MilletScannerScreen from '../screens/MilletScannerScreen';
+import MarketIntelligenceScreen from '../screens/MarketIntelligenceScreen';
+import SchemeFinderScreen from '../screens/SchemeFinderScreen';
+import WaterIntelligenceScreen from '../screens/WaterIntelligenceScreen';
+import SoilAnalyzerScreen from '../screens/SoilAnalyzerScreen';
+import ProfitCalculatorScreen from '../screens/ProfitCalculatorScreen';
+import CommunityScreen from '../screens/CommunityScreen';
+import MarketplaceScreen from '../screens/MarketplaceScreen';
+import DashboardAnalyticsScreen from '../screens/DashboardAnalyticsScreen';
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function AppNavigator() {
   const THEME = useTheme();
   const { farmerProfile } = useProfile();
   
-  // Navigation stack state: 'splash' | 'language' | 'onboarding' | 'dashboard'
   const [currentScreen, setCurrentScreen] = useState('splash');
-  
-  // Dashboard tab state: 'home' | 'twin' | 'map' | 'chat' | 'vision'
   const [activeTab, setActiveTab] = useState('home');
+  const [liveCoords, setLiveCoords] = useState(null);
+
+  React.useEffect(() => {
+    const checkLoginStatus = async () => {
+      try {
+        const storedProfile = await AsyncStorage.getItem('@farmer_profile');
+        if (storedProfile) {
+          setCurrentScreen('dashboard'); // Skip login and onboarding if profile exists
+        } else {
+          setCurrentScreen('login');
+        }
+      } catch (e) {
+        setCurrentScreen('login');
+      }
+    };
+    
+    if (currentScreen === 'splash') {
+      // Small delay just to show splash animation
+      setTimeout(checkLoginStatus, 1500);
+    }
+  }, [currentScreen]);
+
+  const handleNavigate = (target, coordsData) => {
+    if (coordsData) setLiveCoords(coordsData);
+    setActiveTab(target);
+  };
 
   const renderActiveTabScreen = () => {
     switch (activeTab) {
-      case 'home':
-        return <HomeDashboardScreen />;
-      case 'twin':
-        return <TwinSimulatorScreen />;
-      case 'map':
-        return <GISMapScreen />;
-      case 'chat':
-        return <AIChatScreen />;
-      case 'vision':
-        return <VisionScannerScreen />;
-      default:
-        return <HomeDashboardScreen />;
+      case 'home': 
+        return (
+          <HomeDashboardScreen 
+            onAvatarPress={() => setActiveTab('profile')} 
+            onViewMap={() => setActiveTab('map')} 
+            onNavigateTab={handleNavigate}
+          />
+        );
+      case 'dashboard': return <DashboardAnalyticsScreen onBack={() => setActiveTab('home')} />;
+      case 'scanner': return <VisionScannerScreen onBack={() => setActiveTab('home')} />;
+      case 'market': return <MarketplaceScreen onBack={() => setActiveTab('home')} />;
+      case 'profile': return <SecretProfileScreen onBack={() => setActiveTab('home')} />;
+      
+      // Separate Feature Pages for Smart Tools
+      case 'crop_doctor': return <CropDoctorScreen onBack={() => setActiveTab('home')} />;
+      case 'millet_scanner': return <MilletScannerScreen onBack={() => setActiveTab('home')} />;
+      case 'market_intel': return <MarketIntelligenceScreen onBack={() => setActiveTab('home')} />;
+      case 'scheme_finder': return <SchemeFinderScreen onBack={() => setActiveTab('home')} />;
+      case 'water_intel': return <WaterIntelligenceScreen onBack={() => setActiveTab('home')} />;
+      case 'soil_analyzer': return <SoilAnalyzerScreen onBack={() => setActiveTab('home')} />;
+      case 'map': return <GISMapScreen userCoords={liveCoords} onBack={() => setActiveTab('home')} />;
+      case 'profit_calc': return <ProfitCalculatorScreen onBack={() => setActiveTab('home')} />;
+      case 'community': return <CommunityScreen onBack={() => setActiveTab('home')} />;
+      case 'ai': return <AIFarmerChatScreen onBack={() => setActiveTab('home')} />;
+      
+      default: 
+        return (
+          <HomeDashboardScreen 
+            onAvatarPress={() => setActiveTab('profile')} 
+            onViewMap={() => setActiveTab('map')} 
+            onNavigateTab={handleNavigate}
+          />
+        );
     }
   };
 
-  if (currentScreen === 'splash') {
-    return <SplashScreen onFinish={() => setCurrentScreen('language')} />;
-  }
+  if (currentScreen === 'splash') return <SplashScreen onFinish={() => {}} />;
+  if (currentScreen === 'login') return <GlassLoginScreen onLoginSuccess={() => setCurrentScreen('language')} />;
+  if (currentScreen === 'language') return <LanguageSelectionScreen onNext={() => setCurrentScreen('onboarding')} />;
+  if (currentScreen === 'onboarding') return <ProfileOnboardingScreen onFinish={() => setCurrentScreen('dashboard')} />;
 
-  if (currentScreen === 'language') {
-    return <LanguageSelectionScreen onNext={() => setCurrentScreen('onboarding')} />;
-  }
-
-  if (currentScreen === 'onboarding') {
-    return <ProfileOnboardingScreen onFinish={() => setCurrentScreen('dashboard')} />;
-  }
+  const tabs = [
+    { id: 'home', icon: Home, label: 'Home' },
+    { id: 'dashboard', icon: BarChart3, label: 'Dashboard' },
+    { id: 'scanner', icon: Camera, label: 'Scan', isCenter: true },
+    { id: 'market', icon: ShoppingCart, label: 'Market' },
+    { id: 'profile', icon: User, label: 'Profile' }
+  ];
 
   return (
-    <SafeAreaView style={[styles.mainAppContainer, { backgroundColor: THEME.bg }]}>
+    <SafeAreaView style={[styles.mainAppContainer, { backgroundColor: THEME.bg || '#f8faf8' }]} edges={['top']}>
       <View style={{ flex: 1 }}>
         {renderActiveTabScreen()}
       </View>
 
-      {/* Floating Curved Bottom Navigation Bar */}
-      <View style={[styles.navTabBar, { borderColor: THEME.glassBorder }]}>
-        <TouchableOpacity 
-          style={[styles.navTabItem, activeTab === 'home' && [styles.navTabItemActive, { backgroundColor: THEME.primary }]]} 
-          onPress={() => setActiveTab('home')}
-        >
-          <Sprout size={20} color={activeTab === 'home' ? 'white' : THEME.textMuted} />
-          <Text style={[styles.navTabText, { color: activeTab === 'home' ? 'white' : THEME.textMuted }, activeTab === 'home' && styles.navTabTextActive]}>Home</Text>
-        </TouchableOpacity>
+      {/* Mockup Match Bottom Navigation Bar */}
+      <View style={styles.navTabBar}>
+        {tabs.map(tab => {
+          const isActive = activeTab === tab.id;
+          const Icon = tab.icon;
 
-        <TouchableOpacity 
-          style={[styles.navTabItem, activeTab === 'twin' && [styles.navTabItemActive, { backgroundColor: THEME.primary }]]} 
-          onPress={() => setActiveTab('twin')}
-        >
-          <Sliders size={20} color={activeTab === 'twin' ? 'white' : THEME.textMuted} />
-          <Text style={[styles.navTabText, { color: activeTab === 'twin' ? 'white' : THEME.textMuted }, activeTab === 'twin' && styles.navTabTextActive]}>Twin</Text>
-        </TouchableOpacity>
+          if (tab.isCenter) {
+            return (
+              <TouchableOpacity 
+                key={tab.id}
+                style={styles.centerFloatingBtn} 
+                onPress={() => setActiveTab(tab.id)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.centerBtnInner}>
+                  <Camera size={26} color="white" />
+                </View>
+              </TouchableOpacity>
+            );
+          }
 
-        <TouchableOpacity 
-          style={[styles.navTabItem, activeTab === 'map' && [styles.navTabItemActive, { backgroundColor: THEME.primary }]]} 
-          onPress={() => setActiveTab('map')}
-        >
-          <Map size={20} color={activeTab === 'map' ? 'white' : THEME.textMuted} />
-          <Text style={[styles.navTabText, { color: activeTab === 'map' ? 'white' : THEME.textMuted }, activeTab === 'map' && styles.navTabTextActive]}>GIS Map</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.navTabItem, activeTab === 'chat' && [styles.navTabItemActive, { backgroundColor: THEME.primary }]]} 
-          onPress={() => setActiveTab('chat')}
-        >
-          <MessageSquare size={20} color={activeTab === 'chat' ? 'white' : THEME.textMuted} />
-          <Text style={[styles.navTabText, { color: activeTab === 'chat' ? 'white' : THEME.textMuted }, activeTab === 'chat' && styles.navTabTextActive]}>Assistant</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.navTabItem, activeTab === 'vision' && [styles.navTabItemActive, { backgroundColor: THEME.primary }]]} 
-          onPress={() => setActiveTab('vision')}
-        >
-          <Camera size={20} color={activeTab === 'vision' ? 'white' : THEME.textMuted} />
-          <Text style={[styles.navTabText, { color: activeTab === 'vision' ? 'white' : THEME.textMuted }, activeTab === 'vision' && styles.navTabTextActive]}>Scanner</Text>
-        </TouchableOpacity>
+          return (
+            <TouchableOpacity 
+              key={tab.id}
+              style={styles.navTabItem} 
+              onPress={() => setActiveTab(tab.id)}
+            >
+              <Icon 
+                size={22} 
+                color={isActive ? '#2e7d32' : '#94a3b8'} 
+                strokeWidth={isActive ? 2.5 : 1.8} 
+              />
+              <Text style={[styles.navTabText, isActive && styles.navTabTextActive]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </SafeAreaView>
   );
@@ -115,46 +172,65 @@ export default function AppNavigator() {
 const styles = StyleSheet.create({
   mainAppContainer: {
     flex: 1,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0
   },
   navTabBar: {
     position: 'absolute',
-    bottom: 16,
-    left: 12,
-    right: 12,
-    height: 64,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderWidth: 1,
-    borderRadius: 50,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 72,
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
+    justifyContent: 'space-around',
+    paddingHorizontal: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.1,
-    shadowRadius: 15,
-    elevation: 8
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 15
   },
   navTabItem: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    height: 48,
-    borderRadius: 24,
-    gap: 2
-  },
-  navTabItemActive: {
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 3
+    width: 60,
+    height: 50,
   },
   navTabText: {
-    fontSize: 9,
-    fontWeight: '500'
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#94a3b8',
+    marginTop: 4,
   },
   navTabTextActive: {
-    fontWeight: '700'
+    color: '#2e7d32',
+    fontWeight: '700',
+  },
+  centerFloatingBtn: {
+    top: -24,
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: '#ffffff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#2e7d32',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 8,
+    padding: 4,
+  },
+  centerBtnInner: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 27,
+    backgroundColor: '#2e7d32',
+    justifyContent: 'center',
+    alignItems: 'center',
   }
 });

@@ -7,7 +7,7 @@ import { useProfile } from '../context/ProfileContext';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function LanguageSelectionScreen({ onNext }) {
-  const { farmerProfile, setFarmerProfile } = useProfile();
+  const { farmerProfile, saveFarmerProfile } = useProfile();
 
   const languages = [
     { code: 'en', name: 'English', native: 'English' },
@@ -31,8 +31,8 @@ export default function LanguageSelectionScreen({ onNext }) {
           <TouchableOpacity 
             key={l.code} 
             style={[styles.langCard, farmerProfile.preferredLanguage === l.name && styles.langCardSelected]}
-            onPress={() => {
-              setFarmerProfile({ ...farmerProfile, preferredLanguage: l.name });
+            onPress={async () => {
+              await saveFarmerProfile({ ...farmerProfile, preferredLanguage: l.name });
               onNext();
             }}
           >

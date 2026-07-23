@@ -14,13 +14,17 @@ import { useProfile } from '../context/ProfileContext';
 import PillButton from '../components/PillButton';
 
 export default function ProfileOnboardingScreen({ onFinish }) {
-  const { farmerProfile, setFarmerProfile } = useProfile();
+  const { farmerProfile, saveFarmerProfile } = useProfile();
+  
+  // Use local state for the form so we can save it all at once on finish
+  const [localProfile, setLocalProfile] = React.useState(farmerProfile);
 
-  const handleInitialize = () => {
-    if (!farmerProfile.name || !farmerProfile.landArea) {
+  const handleInitialize = async () => {
+    if (!localProfile.name || !localProfile.landArea) {
       alert('Please enter your name and land size.');
       return;
     }
+    await saveFarmerProfile(localProfile);
     onFinish();
   };
 
@@ -35,8 +39,8 @@ export default function ProfileOnboardingScreen({ onFinish }) {
           <TextInput 
             style={styles.fieldInput} 
             placeholder="e.g. Rajesh Kumar" 
-            value={farmerProfile.name} 
-            onChangeText={text => setFarmerProfile({ ...farmerProfile, name: text })}
+            value={localProfile.name} 
+            onChangeText={text => setLocalProfile({ ...localProfile, name: text })}
           />
 
           <Text style={styles.fieldLabel}>Mobile Number</Text>
@@ -44,29 +48,29 @@ export default function ProfileOnboardingScreen({ onFinish }) {
             style={styles.fieldInput} 
             placeholder="10 digit mobile" 
             keyboardType="phone-pad"
-            value={farmerProfile.phone}
-            onChangeText={text => setFarmerProfile({ ...farmerProfile, phone: text })}
+            value={localProfile.phone}
+            onChangeText={text => setLocalProfile({ ...localProfile, phone: text })}
           />
 
           <View style={{ flexDirection: 'row', gap: 12 }}>
             <View style={{ flex: 1 }}>
               <Text style={styles.fieldLabel}>Village</Text>
-              <TextInput style={styles.fieldInput} placeholder="Village name" value={farmerProfile.village} onChangeText={t => setFarmerProfile({ ...farmerProfile, village: t })} />
+              <TextInput style={styles.fieldInput} placeholder="Village name" value={localProfile.village} onChangeText={t => setLocalProfile({ ...localProfile, village: t })} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.fieldLabel}>District</Text>
-              <TextInput style={styles.fieldInput} placeholder="District name" value={farmerProfile.district} onChangeText={t => setFarmerProfile({ ...farmerProfile, district: t })} />
+              <TextInput style={styles.fieldInput} placeholder="District name" value={localProfile.district} onChangeText={t => setLocalProfile({ ...localProfile, district: t })} />
             </View>
           </View>
 
           <View style={{ flexDirection: 'row', gap: 12 }}>
             <View style={{ flex: 1 }}>
               <Text style={styles.fieldLabel}>Land Size (Acres)</Text>
-              <TextInput style={styles.fieldInput} placeholder="e.g. 3.5" keyboardType="numeric" value={farmerProfile.landArea} onChangeText={t => setFarmerProfile({ ...farmerProfile, landArea: t })} />
+              <TextInput style={styles.fieldInput} placeholder="e.g. 3.5" keyboardType="numeric" value={localProfile.landArea} onChangeText={t => setLocalProfile({ ...localProfile, landArea: t })} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.fieldLabel}>Soil Type</Text>
-              <TextInput style={styles.fieldInput} placeholder="e.g. Loamy / Red" value={farmerProfile.soilType} onChangeText={t => setFarmerProfile({ ...farmerProfile, soilType: t })} />
+              <TextInput style={styles.fieldInput} placeholder="e.g. Loamy / Red" value={localProfile.soilType} onChangeText={t => setLocalProfile({ ...localProfile, soilType: t })} />
             </View>
           </View>
 
@@ -74,8 +78,8 @@ export default function ProfileOnboardingScreen({ onFinish }) {
           <TextInput 
             style={styles.fieldInput} 
             placeholder="e.g. Tube Well / Rainfed / Canal" 
-            value={farmerProfile.irrigationSource}
-            onChangeText={text => setFarmerProfile({ ...farmerProfile, irrigationSource: text })}
+            value={localProfile.irrigationSource}
+            onChangeText={text => setLocalProfile({ ...localProfile, irrigationSource: text })}
           />
         </View>
 

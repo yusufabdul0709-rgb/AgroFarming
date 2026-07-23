@@ -4,8 +4,7 @@ import { getFarmTwin, simulateTwin, getAllFarms } from '../controllers/farmContr
 import { getPrices, getMarketplaceListings, createMarketplaceListing } from '../controllers/marketController.js';
 import { getEligibleSchemes, createScheme, getAllSchemes } from '../controllers/schemeController.js';
 import { diagnoseCrop } from '../controllers/visionController.js';
-import { handleAIChat } from '../controllers/aiController.js';
-import { getWeatherData } from '../services/weatherService.js';
+import { handleAIChat, handleAIVision } from '../controllers/aiController.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 
 export const apiRouter = express.Router();
@@ -32,17 +31,27 @@ apiRouter.post('/schemes/create', createScheme);
 
 // Computer Vision routes
 apiRouter.post('/vision/diagnose', diagnoseCrop);
+apiRouter.post('/ai/vision', handleAIVision);
 
 // AI Multi-Agent Chat routes
-apiRouter.post('/ai/chat', authMiddleware, handleAIChat);
+apiRouter.post('/ai/chat', handleAIChat);
+
+import { getWeatherData, getSoilGrids, getNasaPower, getReverseGeocode, getAgmarknetPrices, getCropRecommendations } from '../controllers/externalApiController.js';
 
 // Weather Intelligence route
-apiRouter.get('/weather', async (req, res) => {
-  const { latitude, longitude } = req.query;
-  try {
-    const data = await getWeatherData(Number(latitude), Number(longitude));
-    return res.json({ status: 'success', weather: data });
-  } catch (error) {
-    return res.status(500).json({ status: 'error', message: error.message });
-  }
-});
+apiRouter.get('/weather', getWeatherData);
+
+// Soil Grids
+apiRouter.get('/soil', getSoilGrids);
+
+// NASA POWER Climate Data
+apiRouter.get('/climate', getNasaPower);
+
+// Reverse Geocoding
+apiRouter.get('/geocode', getReverseGeocode);
+
+// Agmarknet Prices
+apiRouter.get('/market/agmarknet', getAgmarknetPrices);
+
+// Crop Recommendations
+apiRouter.get('/farm/recommendations', getCropRecommendations);

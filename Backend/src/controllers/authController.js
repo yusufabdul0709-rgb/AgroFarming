@@ -1,5 +1,6 @@
 import { User } from '../models/User.js';
 import { Farm } from '../models/Farm.js';
+import mongoose from 'mongoose';
 
 // In-memory fallback database for mock mode
 export const MOCK_USERS = [
@@ -145,4 +146,3 @@ export const getAllFarmers = async (req, res) => {
     return res.status(500).json({ status: 'error', message: error.message });
   }
 };
-import mongoose from 'mongoose';

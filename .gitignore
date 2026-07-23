@@ -35,3 +35,7 @@ logs/
 # System files
 .DS_Store
 Thumbs.db
+
+# api's docs
+Api.docx
+Api.txt
