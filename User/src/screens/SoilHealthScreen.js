@@ -6,16 +6,16 @@ import {
   ScrollView, 
   TouchableOpacity 
 } from 'react-native';
-import { Droplet, Info, Compass } from 'lucide-react-native';
+import { Activity, Leaf, ChevronRight } from 'lucide-react-native';
 import { THEME } from '../context/ThemeContext';
 
-export default function WaterIntelligenceScreen({ onBack }) {
-  const waterResources = [
-    { label: 'Groundwater Level', val: '12.4 m', status: 'Good', color: '#4CAF50' },
-    { label: 'Rainfall (Next 7 Days)', val: '45 mm', status: 'Moderate', color: '#EAA013' },
-    { label: 'Nearest River', val: '2.3 km', status: '', color: '' },
-    { label: 'Nearest Lake', val: '3.8 km', status: '', color: '' },
-    { label: 'Canal Distance', val: '1.6 km', status: '', color: '' }
+export default function SoilHealthScreen({ onBack }) {
+  const nutrients = [
+    { name: 'Nitrogen (N)', status: 'Good', percentage: 80, color: '#4CAF50' },
+    { name: 'Phosphorus (P)', status: 'Medium', percentage: 55, color: '#EAA013' },
+    { name: 'Potassium (K)', status: 'Good', percentage: 85, color: '#4CAF50' },
+    { name: 'Organic Carbon', status: 'Medium', percentage: 48, color: '#EAA013' },
+    { name: 'pH Level', status: '6.8 (Optimal)', percentage: 90, color: '#4CAF50' }
   ];
 
   return (
@@ -25,63 +25,70 @@ export default function WaterIntelligenceScreen({ onBack }) {
         <TouchableOpacity style={styles.backBtn} onPress={onBack}>
           <Text style={styles.backText}>◀</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Water Intelligence</Text>
+        <Text style={styles.headerTitle}>Soil Health</Text>
         <View style={{ width: 32 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Water Score Card with blue background */}
+        {/* Overall Score */}
         <View style={styles.scoreCard}>
           <View style={styles.scoreTextSide}>
-            <Text style={styles.scoreLabel}>Water Score</Text>
+            <Text style={styles.scoreLabel}>Overall Soil Health Score</Text>
             <View style={styles.scoreValRow}>
-              <Text style={styles.scoreValBig}>82</Text>
+              <Text style={styles.scoreValBig}>75</Text>
               <Text style={styles.scoreValMuted}>/100</Text>
             </View>
             <Text style={styles.scoreStatusText}>Good</Text>
+            <Text style={styles.updatedText}>Last Updated: 20 May 2024</Text>
           </View>
           
-          <View style={styles.dropletContainer}>
-            <View style={styles.blueWavesBg}>
-              <Droplet size={36} color="#2196F3" />
+          <View style={styles.ringContainer}>
+            <View style={styles.scoreRing}>
+              <Leaf size={28} color={THEME.primary} />
             </View>
           </View>
         </View>
 
-        {/* Water Resources around you */}
-        <Text style={styles.sectionHeader}>Water Resources Around You</Text>
-        <View style={styles.resourcesCard}>
-          {waterResources.map((item, i) => (
-            <View key={i} style={styles.resourceRow}>
-              <Text style={styles.resourceLabel}>{item.label}</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={styles.resourceVal}>{item.val}</Text>
-                {item.status ? (
-                  <Text style={[styles.resourceStatus, { color: item.color }]}>{item.status}</Text>
-                ) : null}
+        {/* Nutrients Status */}
+        <Text style={styles.sectionHeader}>Nutrients Status</Text>
+        <View style={styles.nutrientsCard}>
+          {nutrients.map((item, i) => (
+            <View key={i} style={styles.nutrientRow}>
+              <View style={styles.nutInfo}>
+                <Text style={styles.nutName}>{item.name}</Text>
+                <Text style={[styles.nutStatusText, { color: item.color }]}>{item.status}</Text>
+              </View>
+              {/* Progress Bar */}
+              <View style={styles.barTrack}>
+                <View style={[styles.barFill, { width: `${item.percentage}%`, backgroundColor: item.color }]} />
               </View>
             </View>
           ))}
         </View>
 
-        {/* Irrigation Recommendation */}
-        <Text style={styles.sectionHeader}>Irrigation Recommendation</Text>
-        <View style={styles.recomCard}>
-          <View style={styles.recomIconBg}>
-            <Droplet size={16} color={THEME.primary} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.recomTitle}>Drip Irrigation</Text>
-            <Text style={styles.recomSub}>Will save 35% water and increase yield.</Text>
-          </View>
-          <View style={styles.recomBadge}>
-            <Text style={styles.recomBadgeText}>Recommended</Text>
-          </View>
+        {/* Soil Type */}
+        <View style={styles.typeCard}>
+          <Text style={styles.typeLabel}>Soil Type</Text>
+          <Text style={styles.typeVal}>Clay Loam</Text>
         </View>
 
+        {/* Health tips */}
+        <Text style={styles.sectionHeader}>Soil Health Tips</Text>
+        <TouchableOpacity style={styles.tipsCard} onPress={() => alert('Opening compost recipes...')}>
+          <View style={styles.tipsIconBg}>
+            <Leaf size={16} color={THEME.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.tipsText}>
+              Add organic compost to improve soil organic carbon.
+            </Text>
+          </View>
+          <ChevronRight size={16} color={THEME.textMuted} />
+        </TouchableOpacity>
+
         {/* Action Button */}
-        <TouchableOpacity style={styles.actionBtn} onPress={() => alert('Launching local watershed maps...')}>
-          <Text style={styles.actionBtnText}>View Water Map</Text>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => alert('Generating full soil laboratory report...')}>
+          <Text style={styles.actionBtnText}>View Detailed Report</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -121,11 +128,11 @@ const styles = StyleSheet.create({
     paddingBottom: 100
   },
   scoreCard: {
-    backgroundColor: '#EBF6FD',
+    backgroundColor: 'white',
     borderRadius: 24,
     padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(33, 150, 243, 0.12)',
+    borderColor: THEME.glassBorder,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -136,7 +143,7 @@ const styles = StyleSheet.create({
   },
   scoreLabel: {
     fontSize: 11,
-    color: '#1565C0',
+    color: THEME.textMuted,
     fontWeight: '700',
     textTransform: 'uppercase'
   },
@@ -148,36 +155,38 @@ const styles = StyleSheet.create({
   scoreValBig: {
     fontSize: 32,
     fontWeight: '900',
-    color: '#0D47A1'
+    color: THEME.primary
   },
   scoreValMuted: {
     fontSize: 14,
-    color: '#1565C0',
+    color: THEME.textMuted,
     fontWeight: '700',
     marginLeft: 2
   },
   scoreStatusText: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#1565C0',
+    color: THEME.primary,
     marginTop: 2
   },
-  dropletContainer: {
+  updatedText: {
+    fontSize: 10,
+    color: THEME.textMuted,
+    marginTop: 6
+  },
+  ringContainer: {
     flex: 0.8,
     alignItems: 'flex-end'
   },
-  blueWavesBg: {
+  scoreRing: {
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: 'white',
+    borderWidth: 4,
+    borderColor: THEME.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#2196F3',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 2
+    backgroundColor: '#EAF8EE'
   },
   sectionHeader: {
     fontSize: 15,
@@ -185,7 +194,7 @@ const styles = StyleSheet.create({
     color: THEME.textDark,
     marginBottom: 12
   },
-  resourcesCard: {
+  nutrientsCard: {
     backgroundColor: 'white',
     borderRadius: 24,
     padding: 20,
@@ -193,30 +202,55 @@ const styles = StyleSheet.create({
     borderColor: THEME.glassBorder,
     marginBottom: 20
   },
-  resourceRow: {
+  nutrientRow: {
+    marginBottom: 16
+  },
+  nutInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6
+  },
+  nutName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: THEME.textDark
+  },
+  nutStatusText: {
+    fontSize: 12,
+    fontWeight: '700'
+  },
+  barTrack: {
+    height: 8,
+    backgroundColor: 'rgba(44, 107, 67, 0.05)',
+    borderRadius: 4,
+    overflow: 'hidden'
+  },
+  barFill: {
+    height: '100%',
+    borderRadius: 4
+  },
+  typeCard: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: THEME.glassBorder,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderColor: 'rgba(44, 107, 67, 0.05)'
+    marginBottom: 20
   },
-  resourceLabel: {
+  typeLabel: {
     fontSize: 13,
     fontWeight: '700',
     color: THEME.textMuted
   },
-  resourceVal: {
-    fontSize: 13,
+  typeVal: {
+    fontSize: 14,
     fontWeight: '800',
     color: THEME.textDark
   },
-  resourceStatus: {
-    fontSize: 11,
-    fontWeight: '700',
-    marginLeft: 4
-  },
-  recomCard: {
+  tipsCard: {
     backgroundColor: 'white',
     borderRadius: 20,
     padding: 16,
@@ -227,7 +261,7 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 24
   },
-  recomIconBg: {
+  tipsIconBg: {
     width: 32,
     height: 32,
     borderRadius: 10,
@@ -235,27 +269,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center'
   },
-  recomTitle: {
+  tipsText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: THEME.textDark
-  },
-  recomSub: {
-    fontSize: 11,
-    color: THEME.textMuted,
-    marginTop: 2,
-    fontWeight: '600'
-  },
-  recomBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: 'rgba(44, 107, 67, 0.08)'
-  },
-  recomBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: THEME.primary
+    fontWeight: '600',
+    color: THEME.textDark,
+    lineHeight: 18
   },
   actionBtn: {
     height: 52,

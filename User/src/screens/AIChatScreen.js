@@ -6,197 +6,275 @@ import {
   ScrollView, 
   TouchableOpacity, 
   TextInput, 
-  ActivityIndicator 
+  ActivityIndicator, 
+  KeyboardAvoidingView, 
+  Platform 
 } from 'react-native';
-import { MessageSquare, Mic, Send } from 'lucide-react-native';
+import { MessageSquare, Mic, Send, Bot } from 'lucide-react-native';
 import { THEME } from '../context/ThemeContext';
 import { useProfile } from '../context/ProfileContext';
 
-export default function AIChatScreen() {
+export default function AIChatScreen({ onBack }) {
   const { farmerProfile } = useProfile();
   
-  const [chatMessages, setChatMessages] = useState([
-    { id: 1, text: 'Hello! I am your ApnaKissan AI assistant. How can I help you today?', sender: 'ai' }
+  const [messages, setMessages] = useState([
+    { id: 1, text: "Hello Ramesh!\nI am your AI farming assistant.\nHow can I help you today?", sender: 'ai' }
   ]);
-  const [chatInput, setChatInput] = useState('');
-  const [chatLoading, setChatLoading] = useState(false);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const submitChatMessage = () => {
-    if (!chatInput.trim()) return;
-    const userMsg = { id: Date.now(), text: chatInput, sender: 'user' };
-    setChatMessages(prev => [...prev, userMsg]);
-    setChatInput('');
-    setChatLoading(true);
+  const suggestions = [
+    'Which crop is best for my field?',
+    'Why are my plant leaves turning yellow?',
+    'What is the price of paddy in Warangal?',
+    'How to apply for PM-KISAN?'
+  ];
+
+  const handleSend = (textToSend) => {
+    const promptText = textToSend || input;
+    if (!promptText.trim()) return;
+
+    setMessages(prev => [...prev, { id: Date.now(), text: promptText, sender: 'user' }]);
+    setInput('');
+    setLoading(true);
 
     setTimeout(() => {
-      const promptText = userMsg.text.toLowerCase();
       let reply = '';
-      if (promptText.includes('weather') || promptText.includes('rain')) {
-        reply = '[Weather AI] Local sensors report humidity at 65% with a 30% rain probability. Crop status indicates sowing can proceed safely.';
-      } else if (promptText.includes('scheme') || promptText.includes('money')) {
-        reply = '[Scheme AI] Matching your profile, you are eligible for the PM-KISAN subsidy. Please prepare your land record copy (Khatauni) for submission.';
-      } else if (promptText.includes('mandi') || promptText.includes('price')) {
-        reply = '[Market AI] Today\'s price for Paddy in your district mandi is ₹2,183 per quintal. We predict stable prices for the next 7 days.';
+      const promptLower = promptText.toLowerCase();
+      if (promptLower.includes('crop') || promptLower.includes('field')) {
+        reply = 'Based on your clay loam soil and current season weather in Warangal, Paddy (Swarna) is the best crop match with a 92% suitability index. It minimizes crop risks while yielding optimal revenue.';
+      } else if (promptLower.includes('yellow') || promptLower.includes('leaves')) {
+        reply = 'Leaves turning yellow is often a symptom of Nitrogen deficiency. I recommend doing a quick soil card inspection or applying 10-15 kg/acre urea, combined with organic manure.';
+      } else if (promptLower.includes('price') || promptLower.includes('paddy')) {
+        reply = 'Today\'s average Mandi price for Paddy in Warangal is ₹2,450 per quintal. Prices have seen a 4.2% weekly increase with stable forecasts.';
+      } else if (promptLower.includes('kisan') || promptLower.includes('apply')) {
+        reply = 'To apply for PM-KISAN yojana, prepare your Aadhar card, land registration copy (Khatauni), and bank account details. Applications can be submitted directly via our Scheme Finder tab.';
       } else {
-        reply = '[Farmer AI] Understood. Based on your loamy soil type, we recommend maintaining alternate wetting and drying for irrigation to optimize root strength.';
+        reply = 'Understood. Let me consult the agricultural database for the best practices in Warangal. I suggest verifying your irrigation scheduling first.';
       }
-      
-      setChatMessages(prev => [...prev, { id: Date.now() + 1, text: reply, sender: 'ai' }]);
-      setChatLoading(false);
+
+      setMessages(prev => [...prev, { id: Date.now() + 1, text: reply, sender: 'ai' }]);
+      setLoading(false);
     }, 1500);
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: THEME.bg }}>
-      {/* Chat Header */}
-      <View style={styles.chatHeader}>
-        <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-          <MessageSquare color={THEME.primary} size={22} />
-          <Text style={{ fontSize: 16, fontWeight: '700', color: THEME.deepForest }}>ApnaKissan Multi-Agent AI</Text>
-        </View>
-        <Text style={{ fontSize: 11, color: THEME.textMuted }}>Preferred: {farmerProfile.preferredLanguage}</Text>
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+      style={styles.container}
+    >
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backBtn} onPress={onBack}>
+          <Text style={styles.backText}>◀</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>AI Assistant</Text>
+        <View style={{ width: 32 }} />
       </View>
 
-      {/* Suggestion Bubbles */}
-      <View style={styles.chatSuggestionsRow}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, gap: 8 }}>
-          <TouchableOpacity style={styles.sugBubble} onPress={() => setChatInput('Check crop prices')}>
-            <Text style={styles.sugText}>🌾 Check crop prices</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.sugBubble} onPress={() => setChatInput('Eligible subsidies?')}>
-            <Text style={styles.sugText}>🏛️ Eligible subsidies?</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.sugBubble} onPress={() => setChatInput('Tomato disease remedy')}>
-            <Text style={styles.sugText}>🐛 Tomato disease remedy</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
-
-      {/* Messages List */}
-      <ScrollView style={{ flex: 1, padding: 12 }} showsVerticalScrollIndicator={false}>
-        {chatMessages.map(msg => (
+      {/* Messages list */}
+      <ScrollView 
+        style={{ flex: 1, padding: 16 }} 
+        contentContainerStyle={{ paddingBottom: 32 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {messages.map(msg => (
           <View 
             key={msg.id} 
             style={[
-              styles.chatMsgBubble, 
-              msg.sender === 'user' ? styles.chatMsgUser : styles.chatMsgAI
+              styles.msgBubble, 
+              msg.sender === 'user' ? styles.msgUser : styles.msgAI
             ]}
           >
-            <Text style={[styles.chatMsgText, msg.sender === 'user' ? styles.chatMsgTextUser : styles.chatMsgTextAI]}>
+            {msg.sender === 'ai' && (
+              <View style={styles.botIconCircle}>
+                <Bot size={14} color="white" />
+              </View>
+            )}
+            <Text style={[styles.msgText, msg.sender === 'user' ? styles.msgTextUser : styles.msgTextAI]}>
               {msg.text}
             </Text>
           </View>
         ))}
-        {chatLoading && (
-          <View style={[styles.chatMsgBubble, styles.chatMsgAI, { width: 60, alignItems: 'center' }]}>
+
+        {loading && (
+          <View style={[styles.msgBubble, styles.msgAI, { width: 60, alignItems: 'center' }]}>
             <ActivityIndicator size="small" color={THEME.primary} />
+          </View>
+        )}
+
+        {/* Suggestion list */}
+        {messages.length === 1 && (
+          <View style={styles.sugSection}>
+            <Text style={styles.sugTitle}>Try asking me</Text>
+            {suggestions.map((sug, i) => (
+              <TouchableOpacity 
+                key={i} 
+                style={styles.sugBubble}
+                onPress={() => handleSend(sug)}
+              >
+                <Text style={styles.sugText}>{sug}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         )}
       </ScrollView>
 
-      {/* Input Bar */}
-      <View style={styles.chatInputBar}>
+      {/* Input bar */}
+      <View style={styles.inputBar}>
         <TextInput 
-          style={styles.chatTextInput} 
-          placeholder="Ask anything..." 
-          value={chatInput}
-          onChangeText={setChatInput}
-          onSubmitEditing={submitChatMessage}
+          style={styles.textInput} 
+          placeholder="Type your question..." 
+          placeholderTextColor={THEME.textMuted}
+          value={input}
+          onChangeText={setInput}
+          onSubmitEditing={() => handleSend()}
         />
-        <TouchableOpacity style={styles.voiceChatBtn} onPress={() => alert('Speech-To-Text micro-phone initialized!')}>
+        <TouchableOpacity style={styles.micBtn} onPress={() => alert('Speech-To-Text active! State speech details...')}>
           <Mic size={18} color={THEME.primary} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.sendChatBtn} onPress={submitChatMessage}>
+        <TouchableOpacity style={styles.sendBtn} onPress={() => handleSend()}>
           <Send size={16} color="white" />
         </TouchableOpacity>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  chatHeader: {
+  container: {
+    flex: 1,
+    backgroundColor: THEME.bg
+  },
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 16,
     backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderColor: '#e8eae3'
+    borderColor: 'rgba(44, 107, 67, 0.06)'
   },
-  chatSuggestionsRow: {
-    backgroundColor: 'white',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderColor: '#e8eae3'
+  backBtn: {
+    padding: 8
   },
-  sugBubble: {
-    backgroundColor: THEME.bg,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 30,
-    borderWidth: 1,
-    borderColor: '#e8eae3'
+  backText: {
+    fontSize: 16,
+    color: THEME.textDark
   },
-  sugText: {
-    fontSize: 11,
-    color: THEME.deepForest
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: THEME.textDark
   },
-  chatMsgBubble: {
-    maxWidth: '80%',
-    padding: 12,
-    borderRadius: 18,
-    marginBottom: 10
+  msgBubble: {
+    maxWidth: '85%',
+    padding: 14,
+    borderRadius: 20,
+    marginBottom: 16,
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'flex-start'
   },
-  chatMsgUser: {
+  msgUser: {
     alignSelf: 'flex-end',
     backgroundColor: THEME.primary,
-    borderBottomRightRadius: 2
+    borderBottomRightRadius: 2,
+    shadowColor: THEME.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2
   },
-  chatMsgAI: {
+  msgAI: {
     alignSelf: 'flex-start',
     backgroundColor: 'white',
     borderWidth: 1,
-    borderColor: '#e8eae3',
-    borderBottomLeftRadius: 2
+    borderColor: THEME.glassBorder,
+    borderBottomLeftRadius: 2,
+    shadowColor: '#1b2e1b',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.02,
+    shadowRadius: 8,
+    elevation: 1
   },
-  chatMsgText: {
+  botIconCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: THEME.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2
+  },
+  msgText: {
     fontSize: 13,
-    lineHeight: 18
+    lineHeight: 18,
+    flex: 1
   },
-  chatMsgTextUser: {
-    color: 'white'
+  msgTextUser: {
+    color: 'white',
+    fontWeight: '600'
   },
-  chatMsgTextAI: {
-    color: THEME.deepForest
+  msgTextAI: {
+    color: THEME.textDark,
+    fontWeight: '600'
   },
-  chatInputBar: {
+  sugSection: {
+    marginTop: 10
+  },
+  sugTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: THEME.textMuted,
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5
+  },
+  sugBubble: {
+    backgroundColor: 'white',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: THEME.glassBorder,
+    marginBottom: 8
+  },
+  sugText: {
+    fontSize: 13,
+    color: THEME.textDark,
+    fontWeight: '600'
+  },
+  inputBar: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
     backgroundColor: 'white',
     borderTopWidth: 1,
-    borderColor: '#e8eae3',
-    paddingBottom: 24
+    borderColor: 'rgba(44, 107, 67, 0.06)',
+    paddingBottom: Platform.OS === 'ios' ? 24 : 12
   },
-  chatTextInput: {
+  textInput: {
     flex: 1,
-    backgroundColor: THEME.bg,
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 14,
-    marginRight: 10,
-    color: THEME.deepForest
+    backgroundColor: '#F5F7F3',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    height: 48,
+    fontSize: 13,
+    color: THEME.textDark,
+    fontWeight: '600'
   },
-  voiceChatBtn: {
+  micBtn: {
     padding: 10,
-    marginRight: 6
+    marginHorizontal: 4
   },
-  sendChatBtn: {
+  sendBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: THEME.primary,
-    width: 42,
-    height: 42,
-    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center'
   }
