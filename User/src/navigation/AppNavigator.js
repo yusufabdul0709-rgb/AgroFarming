@@ -99,7 +99,7 @@ export default function AppNavigator() {
 
   // Stack Routing Switch
   if (currentScreen === 'splash') {
-    return <SplashScreen onFinish={() => setCurrentScreen('login')} />;
+    return <SplashScreen onFinish={() => setCurrentScreen(farmerProfile?.phone ? 'dashboard' : 'login')} />;
   }
 
   if (currentScreen === 'login') {

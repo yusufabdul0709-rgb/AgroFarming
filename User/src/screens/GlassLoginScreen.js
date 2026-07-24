@@ -12,12 +12,16 @@ import {
   ActivityIndicator 
 } from 'react-native';
 import { Sprout, Phone, Lock, ArrowRight, ShieldCheck, CheckCircle2 } from 'lucide-react-native';
+import { useProfile } from '../context/ProfileContext';
 
 export default function GlassLoginScreen({ onLoginSuccess }) {
+  const { loginFarmer, registerFarmer } = useProfile();
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [otp, setOtp] = useState('');
-  const [step, setStep] = useState('phone'); // 'phone' | 'otp'
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [isRegistering, setIsRegistering] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -37,22 +41,26 @@ export default function GlassLoginScreen({ onLoginSuccess }) {
     ]).start();
   }, [fadeAnim, slideAnim]);
 
-  const handleSendOTP = () => {
-    if (phoneNumber.length < 10) return;
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setStep('otp');
-    }, 1200);
-  };
+  const handleSubmit = async () => {
+    if (phoneNumber.length < 10 || password.length < 4) return;
+    if (isRegistering && !name.trim()) return;
 
-  const handleVerifyOTP = () => {
-    if (otp.length < 4) return;
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    setErrorMsg('');
+
+    let res;
+    if (isRegistering) {
+      res = await registerFarmer(phoneNumber, password, name);
+    } else {
+      res = await loginFarmer(phoneNumber, password);
+    }
+
+    setLoading(false);
+    if (res.success) {
       onLoginSuccess();
-    }, 1200);
+    } else {
+      setErrorMsg(res.message);
+    }
   };
 
   return (
@@ -75,79 +83,80 @@ export default function GlassLoginScreen({ onLoginSuccess }) {
             </View>
             <Text style={styles.brandTitle}>ApnaKissan</Text>
             <Text style={styles.brandSubtitle}>
-              {step === 'phone' ? 'Smart Farming. Better Tomorrow.' : 'Enter Verification Code'}
+              {isRegistering ? 'Create your Farmer Account' : 'Login to your Farmer Account'}
             </Text>
           </View>
 
           {/* Form Controls */}
-          {step === 'phone' ? (
-            <View style={styles.formGroup}>
-              <Text style={styles.inputLabel}>Mobile Number</Text>
-              <View style={styles.inputWrapper}>
-                <Phone size={20} color="#2e7d32" style={styles.inputIcon} />
-                <Text style={styles.countryCode}>+91</Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Enter 10-digit number"
-                  placeholderTextColor="#8d99ae"
-                  keyboardType="phone-pad"
-                  maxLength={10}
-                  value={phoneNumber}
-                  onChangeText={setPhoneNumber}
-                />
-              </View>
+          <View style={styles.formGroup}>
+            {isRegistering && (
+              <>
+                <Text style={styles.inputLabel}>Full Name</Text>
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Enter your name"
+                    placeholderTextColor="#8d99ae"
+                    value={name}
+                    onChangeText={setName}
+                  />
+                </View>
+              </>
+            )}
 
-              <TouchableOpacity 
-                style={[styles.primaryButton, phoneNumber.length < 10 && styles.buttonDisabled]}
-                onPress={handleSendOTP}
-                disabled={phoneNumber.length < 10 || loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color="white" />
-                ) : (
-                  <>
-                    <Text style={styles.buttonText}>Get Verification Code</Text>
-                    <ArrowRight size={18} color="white" />
-                  </>
-                )}
-              </TouchableOpacity>
+            <Text style={styles.inputLabel}>Mobile Number</Text>
+            <View style={styles.inputWrapper}>
+              <Phone size={20} color="#2e7d32" style={styles.inputIcon} />
+              <Text style={styles.countryCode}>+91</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Enter 10-digit number"
+                placeholderTextColor="#8d99ae"
+                keyboardType="phone-pad"
+                maxLength={10}
+                value={phoneNumber}
+                onChangeText={setPhoneNumber}
+              />
             </View>
-          ) : (
-            <View style={styles.formGroup}>
-              <Text style={styles.inputLabel}>Verification OTP sent to +91 {phoneNumber}</Text>
-              <View style={styles.inputWrapper}>
-                <Lock size={20} color="#2e7d32" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Enter 4-digit OTP"
-                  placeholderTextColor="#8d99ae"
-                  keyboardType="number-pad"
-                  maxLength={4}
-                  value={otp}
-                  onChangeText={setOtp}
-                />
-              </View>
 
-              <TouchableOpacity 
-                style={[styles.primaryButton, otp.length < 4 && styles.buttonDisabled]}
-                onPress={handleVerifyOTP}
-                disabled={otp.length < 4 || loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color="white" />
-                ) : (
-                  <>
-                    <Text style={styles.buttonText}>Verify & Login</Text>
-                    <CheckCircle2 size={18} color="white" />
-                  </>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.changeNumberButton} onPress={() => setStep('phone')}>
-                <Text style={styles.changeNumberText}>Change Mobile Number</Text>
-              </TouchableOpacity>
+            <Text style={styles.inputLabel}>Password</Text>
+            <View style={styles.inputWrapper}>
+              <Lock size={20} color="#2e7d32" style={styles.inputIcon} />
+              <TextInput
+                style={styles.textInput}
+                placeholder="Enter password"
+                placeholderTextColor="#8d99ae"
+                secureTextEntry
+                value={password}
+                onChangeText={setPassword}
+              />
             </View>
-          )}
+
+            {errorMsg ? (
+              <Text style={{ color: 'red', marginBottom: 10, textAlign: 'center' }}>{errorMsg}</Text>
+            ) : null}
+
+            <TouchableOpacity 
+              style={[styles.primaryButton, (phoneNumber.length < 10 || password.length < 4 || (isRegistering && !name.trim())) && styles.buttonDisabled]}
+              onPress={handleSubmit}
+              disabled={phoneNumber.length < 10 || password.length < 4 || (isRegistering && !name.trim()) || loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <>
+                  <Text style={styles.buttonText}>{isRegistering ? 'Register' : 'Login'}</Text>
+                  <ArrowRight size={18} color="white" />
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.changeNumberButton} onPress={() => { setIsRegistering(!isRegistering); setErrorMsg(''); }}>
+              <Text style={styles.changeNumberText}>
+                {isRegistering ? 'Already have an account? Login' : "Don't have an account? Register"}
+              </Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Security Badge */}
           <View style={styles.securityFooter}>

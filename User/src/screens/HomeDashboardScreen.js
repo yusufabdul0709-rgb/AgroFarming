@@ -28,6 +28,7 @@ import { THEME } from '../context/ThemeContext';
 import { useProfile } from '../context/ProfileContext';
 import GlassCard from '../components/GlassCard';
 
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function HomeDashboardScreen({ onNavigateTo }) {
@@ -140,8 +141,24 @@ export default function HomeDashboardScreen({ onNavigateTo }) {
           ))}
         </ScrollView>
 
+        {/* Mapbox: Set Land Location */}
+        <View style={styles.sectionHeaderGrid}>
+          <Text style={styles.sectionTitle}>Farm Location</Text>
+        </View>
+        <View style={styles.mapContainer}>
+
+          <TouchableOpacity 
+            style={styles.setLocationBtn}
+            onPress={() => alert('Opening full map to set location...')}
+          >
+            <MapPin size={18} color="white" />
+            <Text style={styles.setLocationBtnText}>Set Land Location</Text>
+          </TouchableOpacity>
+        </View>
+
+
         {/* 5. Quick Access Grid */}
-        <Text style={styles.sectionTitleGrid}>Quick Access</Text>
+        <Text style={[styles.sectionTitleGrid, { marginTop: 24 }]}>Quick Access</Text>
         <View style={styles.gridContainer}>
           {quickAccessItems.map(item => (
             <TouchableOpacity 
@@ -368,8 +385,45 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     color: THEME.textDark,
+    marginBottom: 14
+  },
+  sectionHeaderGrid: {
     marginTop: 24,
     marginBottom: 14
+  },
+  mapContainer: {
+    height: 180,
+    borderRadius: 24,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#EAEAEA',
+    borderWidth: 1,
+    borderColor: 'rgba(44, 107, 67, 0.08)'
+  },
+  map: {
+    flex: 1
+  },
+  setLocationBtn: {
+    position: 'absolute',
+    bottom: 16,
+    alignSelf: 'center',
+    backgroundColor: THEME.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 30,
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 5
+  },
+  setLocationBtnText: {
+    color: 'white',
+    fontWeight: '700',
+    fontSize: 14
   },
   gridContainer: {
     flexDirection: 'row',

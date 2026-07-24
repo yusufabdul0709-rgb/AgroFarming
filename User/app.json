@@ -17,10 +17,10 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#F7F9F4"
-      }
+      },
+      "package": "com.yusufabdul07.apnakissan"
     },
-    "web": {
-    },
+    "web": {},
     "sdkVersion": "57.0.0",
     "plugins": [
       "expo-status-bar"

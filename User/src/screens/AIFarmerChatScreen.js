@@ -90,7 +90,7 @@ export default function AIFarmerChatScreen() {
     setMessages(INITIAL_MESSAGES[langId] || INITIAL_MESSAGES.en);
   };
 
-  const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.52:5000/api';
+  const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.39:5000/api';
 
   const handleSend = async (textToSend) => {
     const query = typeof textToSend === 'string' ? textToSend : inputQuery;

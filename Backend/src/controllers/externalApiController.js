@@ -63,9 +63,51 @@ export const getAgmarknetPrices = async (req, res) => {
   }
 };
 
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
 // 6. AI Crop Recommendation Engine
 export const getCropRecommendations = async (req, res) => {
+  const { farmContext, weatherContext } = req.body;
+  
   try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error('GEMINI_API_KEY is not configured in the backend environment variables.');
+    }
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' }); // Pro is better for complex structured JSON generation
+
+    const prompt = `
+      Act as an expert agricultural agronomist. 
+      Recommend the best crop based on the following context:
+      Farm Context: ${JSON.stringify(farmContext)}
+      Weather Context: ${JSON.stringify(weatherContext)}
+
+      Provide a JSON response with exactly these fields:
+      - crop (string): Name of recommended crop
+      - suitabilityScore (number): 0 to 100
+      - expectedYield (string): e.g., '28-32 qtl/acre'
+      - estProfit (string): e.g., '₹45,000/acre'
+      - waterNeed (string): 'Low', 'Medium', or 'High'
+      - duration (string): e.g., '120-130 days'
+      - bestMatch (boolean): true or false
+      - highProfit (boolean): true or false
+
+      Return ONLY raw JSON, no markdown formatting.
+    `;
+
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text();
+    const cleanedText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+    const parsedData = JSON.parse(cleanedText);
+
+    return res.json({
+      status: 'success',
+      data: parsedData
+    });
+  } catch (error) {
+    console.error('[Crop Rec Engine Error]', error);
+    // Fallback if API fails
     return res.json({
       status: 'success',
       data: {
@@ -79,7 +121,5 @@ export const getCropRecommendations = async (req, res) => {
         duration: '120-130 days'
       }
     });
-  } catch (error) {
-    return res.status(500).json({ status: 'error', message: error.message });
   }
 };

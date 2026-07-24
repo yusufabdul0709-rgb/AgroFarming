@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { ArrowLeft, TrendingUp, TrendingDown, Store, IndianRupee, RefreshCw } from 'lucide-react-native';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.52:5000/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.39:5000/api';
 
 export default function MarketIntelligenceScreen({ onBack }) {
   const [loading, setLoading] = useState(true);

@@ -30,7 +30,7 @@ export default function AIChatScreen({ onBack }) {
     'How to apply for PM-KISAN?'
   ];
 
-  const handleSend = (textToSend) => {
+  const handleSend = async (textToSend) => {
     const promptText = textToSend || input;
     if (!promptText.trim()) return;
 
@@ -38,24 +38,33 @@ export default function AIChatScreen({ onBack }) {
     setInput('');
     setLoading(true);
 
-    setTimeout(() => {
+    try {
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.39:5000/api';
+      const res = await fetch(`${API_URL}/ai/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: promptText,
+          language: farmerProfile?.preferredLanguage || 'English',
+          userId: farmerProfile?._id || 'mock-user-111'
+        })
+      });
+      const data = await res.json();
+      
       let reply = '';
-      const promptLower = promptText.toLowerCase();
-      if (promptLower.includes('crop') || promptLower.includes('field')) {
-        reply = 'Based on your clay loam soil and current season weather in Warangal, Paddy (Swarna) is the best crop match with a 92% suitability index. It minimizes crop risks while yielding optimal revenue.';
-      } else if (promptLower.includes('yellow') || promptLower.includes('leaves')) {
-        reply = 'Leaves turning yellow is often a symptom of Nitrogen deficiency. I recommend doing a quick soil card inspection or applying 10-15 kg/acre urea, combined with organic manure.';
-      } else if (promptLower.includes('price') || promptLower.includes('paddy')) {
-        reply = 'Today\'s average Mandi price for Paddy in Warangal is ₹2,450 per quintal. Prices have seen a 4.2% weekly increase with stable forecasts.';
-      } else if (promptLower.includes('kisan') || promptLower.includes('apply')) {
-        reply = 'To apply for PM-KISAN yojana, prepare your Aadhar card, land registration copy (Khatauni), and bank account details. Applications can be submitted directly via our Scheme Finder tab.';
+      if (data.status === 'success') {
+        reply = data.response;
       } else {
-        reply = 'Understood. Let me consult the agricultural database for the best practices in Warangal. I suggest verifying your irrigation scheduling first.';
+        reply = 'Sorry, I am having trouble connecting to the AI brain right now.';
       }
-
+      
       setMessages(prev => [...prev, { id: Date.now() + 1, text: reply, sender: 'ai' }]);
+    } catch (err) {
+      console.error(err);
+      setMessages(prev => [...prev, { id: Date.now() + 1, text: 'Network error. Please try again later.', sender: 'ai' }]);
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -68,7 +77,10 @@ export default function AIChatScreen({ onBack }) {
         <TouchableOpacity style={styles.backBtn} onPress={onBack}>
           <Text style={styles.backText}>◀</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>AI Assistant</Text>
+        <View style={{ alignItems: 'center' }}>
+          <Text style={styles.headerTitle}>AI Assistant</Text>
+          <Text style={{ fontSize: 10, color: THEME.primary, fontWeight: '600' }}>Powered by Gemini ✨</Text>
+        </View>
         <View style={{ width: 32 }} />
       </View>
 
@@ -254,7 +266,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderTopWidth: 1,
     borderColor: 'rgba(44, 107, 67, 0.06)',
-    paddingBottom: Platform.OS === 'ios' ? 24 : 12
+    paddingBottom: Platform.OS === 'ios' ? 90 : 80
   },
   textInput: {
     flex: 1,

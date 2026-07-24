@@ -44,34 +44,78 @@ export const ProfileProvider = ({ children }) => {
     loadProfile();
   }, []);
 
+  const loginFarmer = async (phone, password) => {
+    try {
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.39:5000/api';
+      const res = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, password, isRegistering: false })
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        const profile = data.user;
+        setFarmerProfileState(profile);
+        await AsyncStorage.setItem('@farmer_profile', JSON.stringify(profile));
+        await AsyncStorage.setItem('@farmer_token', data.token);
+        return { success: true };
+      } else {
+        return { success: false, message: data.message };
+      }
+    } catch (e) {
+      console.error('Login failed', e);
+      return { success: false, message: 'Network error. Please try again.' };
+    }
+  };
+
+  const registerFarmer = async (phone, password, name) => {
+    try {
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.39:5000/api';
+      const res = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, password, name, isRegistering: true })
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        const profile = data.user;
+        setFarmerProfileState(profile);
+        await AsyncStorage.setItem('@farmer_profile', JSON.stringify(profile));
+        await AsyncStorage.setItem('@farmer_token', data.token);
+        return { success: true };
+      } else {
+        return { success: false, message: data.message };
+      }
+    } catch (e) {
+      console.error('Registration failed', e);
+      return { success: false, message: 'Network error. Please try again.' };
+    }
+  };
+
   const saveFarmerProfile = async (newProfile) => {
     try {
       const updatedProfile = { ...farmerProfile, ...newProfile };
       setFarmerProfileState(updatedProfile);
       await AsyncStorage.setItem('@farmer_profile', JSON.stringify(updatedProfile));
 
-      // Sync to MongoDB Atlas cluster via Node.js Backend API
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.52:5000/api';
-      fetch(`${API_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: updatedProfile.phone || '9876543210',
-          name: updatedProfile.name || 'Ramesh Kumar',
-          preferredLanguage: updatedProfile.preferredLanguage || 'English',
-          village: updatedProfile.village || 'Rajapur',
-          landArea: parseFloat(updatedProfile.acres || updatedProfile.landArea || 15.4),
-        })
-      }).then(res => res.json())
-        .then(data => console.log('[MongoDB Sync] Profile saved to MongoDB Atlas:', data.status))
-        .catch(err => console.warn('[MongoDB Sync] Offline fallback:', err.message));
+      if (updatedProfile._id) {
+        // Sync to MongoDB Atlas cluster via Node.js Backend API
+        const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.39:5000/api';
+        fetch(`${API_URL}/auth/profile/${updatedProfile._id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newProfile)
+        }).then(res => res.json())
+          .then(data => console.log('[MongoDB Sync] Profile updated:', data.status))
+          .catch(err => console.warn('[MongoDB Sync] Offline fallback:', err.message));
+      }
     } catch (e) {
       console.error('Failed to save profile to AsyncStorage', e);
     }
   };
 
   return (
-    <ProfileContext.Provider value={{ farmerProfile, saveFarmerProfile, isLoaded }}>
+    <ProfileContext.Provider value={{ farmerProfile, saveFarmerProfile, loginFarmer, registerFarmer, isLoaded }}>
       {children}
     </ProfileContext.Provider>
   );
