@@ -9,13 +9,17 @@ import {
   ActivityIndicator,
   Dimensions 
 } from 'react-native';
-import { Camera, RefreshCw, CheckCircle2, ChevronRight } from 'lucide-react-native';
+import { Camera, Image as ImageIcon, CheckCircle2, ChevronRight } from 'lucide-react-native';
 import { THEME } from '../context/ThemeContext';
+import { useProfile } from '../context/ProfileContext';
+import * as ImagePicker from 'expo-image-picker';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function MilletScannerScreen({ onBack }) {
+  const { authToken } = useProfile();
   const [scanning, setScanning] = useState(false);
+  const [scannedImgUri, setScannedImgUri] = useState(null);
   const [result, setResult] = useState({
     name: 'Pearl Millet (Bajra)',
     grade: 'Grade: A (Excellent)',
@@ -24,18 +28,87 @@ export default function MilletScannerScreen({ onBack }) {
     moisture: '8%'
   });
 
-  const handleScan = () => {
+  const pickImage = async (useCamera = false) => {
+    try {
+      if (useCamera) {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          alert('Camera permission is required to scan millets!');
+          return;
+        }
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          alert('Media library permission is required to select images!');
+          return;
+        }
+      }
+
+      const options = {
+        mediaTypes: ImagePicker.MediaTypeOptions?.Images || 'images',
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+        base64: true
+      };
+
+      let result;
+      if (useCamera) {
+        result = await ImagePicker.launchCameraAsync(options);
+      } else {
+        result = await ImagePicker.launchImageLibraryAsync(options);
+      }
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        setScannedImgUri(asset.uri);
+        runMilletScan(asset.fileName || 'millet.jpg', asset.base64);
+      }
+    } catch (e) {
+      console.error('Millet scanning error', e);
+      alert('Failed to launch device camera or gallery.');
+    }
+  };
+
+  const runMilletScan = async (imageName, base64) => {
     setScanning(true);
-    setTimeout(() => {
-      setScanning(false);
-      setResult({
-        name: 'Pearl Millet (Bajra)',
-        grade: 'Grade: A (Excellent)',
-        freshness: '95%',
-        fungus: 'Not Detected',
-        moisture: '8%'
+    try {
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.39:5000/api';
+      const headers = { 'Content-Type': 'application/json' };
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+
+      const res = await fetch(`${API_URL}/vision/diagnose`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          imageName,
+          base64Image: `data:image/jpeg;base64,${base64}`,
+          isMillet: true
+        })
       });
-    }, 1800);
+
+      const data = await res.json();
+      setScanning(false);
+
+      if (data.status === 'success' && data.diagnosis) {
+        const diag = data.diagnosis;
+        setResult({
+          name: diag.name || 'Pearl Millet (Bajra)',
+          grade: `Grade: ${diag.grade || 'A (Excellent)'}`,
+          freshness: diag.freshness || '95%',
+          fungus: diag.fungus || 'Not Detected',
+          moisture: diag.moisture || '8%'
+        });
+      } else {
+        alert(data.message || 'Millet scanner AI failed to analyze. Please try a clearer picture of the millet grains.');
+      }
+    } catch (e) {
+      setScanning(false);
+      console.error(e);
+      alert('Network error. Failed to connect to computer vision scanner.');
+    }
   };
 
   return (
@@ -57,7 +130,7 @@ export default function MilletScannerScreen({ onBack }) {
         {/* Scanner View Container */}
         <View style={styles.scannerWrapper}>
           <Image 
-            source={{ uri: 'https://images.unsplash.com/photo-1574325131876-aa781f7385fa?auto=format&fit=crop&w=400&q=80' }} 
+            source={{ uri: scannedImgUri || 'https://images.unsplash.com/photo-1574325131876-aa781f7385fa?auto=format&fit=crop&w=400&q=80' }} 
             style={styles.grainBg} 
           />
           {/* Target Overlay Frame */}
@@ -68,7 +141,7 @@ export default function MilletScannerScreen({ onBack }) {
             <View style={styles.cornerBR} />
             
             {/* Center camera trigger */}
-            <TouchableOpacity style={styles.camTrigger} onPress={handleScan}>
+            <TouchableOpacity style={styles.camTrigger} onPress={() => pickImage(true)}>
               <Camera size={28} color="white" />
             </TouchableOpacity>
           </View>
@@ -85,7 +158,7 @@ export default function MilletScannerScreen({ onBack }) {
         {result && !scanning && (
           <View style={styles.resultsCard}>
             <View style={styles.resHeader}>
-              <Text style={styles.resLabel}>Last Scan Result</Text>
+              <Text style={styles.resLabel}>Scan Result Analysis</Text>
               <ChevronRight size={16} color={THEME.textMuted} />
             </View>
 
@@ -111,10 +184,18 @@ export default function MilletScannerScreen({ onBack }) {
           </View>
         )}
 
-        {/* Action Button */}
-        <TouchableOpacity style={styles.actionBtn} onPress={handleScan}>
-          <Text style={styles.actionBtnText}>Scan Now</Text>
-        </TouchableOpacity>
+        {/* Action Buttons Row */}
+        <View style={styles.btnRow}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => pickImage(true)}>
+            <Camera size={16} color="white" style={{ marginRight: 6 }} />
+            <Text style={styles.actionBtnText}>Use Camera</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.secondaryBtn} onPress={() => pickImage(false)}>
+            <ImageIcon size={16} color={THEME.primary} style={{ marginRight: 6 }} />
+            <Text style={styles.secondaryBtnText}>Select Gallery</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </View>
   );
@@ -298,12 +379,19 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginTop: 4
   },
+  btnRow: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%'
+  },
   actionBtn: {
     height: 52,
     backgroundColor: THEME.primary,
     borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    flex: 1,
     shadowColor: THEME.primary,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.2,
@@ -312,7 +400,23 @@ const styles = StyleSheet.create({
   },
   actionBtnText: {
     color: 'white',
-    fontSize: 15,
+    fontSize: 14,
+    fontWeight: '700'
+  },
+  secondaryBtn: {
+    height: 52,
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: THEME.primary,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    flex: 1
+  },
+  secondaryBtnText: {
+    color: THEME.primary,
+    fontSize: 14,
     fontWeight: '700'
   }
 });

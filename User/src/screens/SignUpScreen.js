@@ -16,7 +16,7 @@ import { THEME } from '../context/ThemeContext';
 import { useProfile } from '../context/ProfileContext';
 
 export default function SignUpScreen({ onSignUp, onNavigateToLogin }) {
-  const { farmerProfile, saveFarmerProfile } = useProfile();
+  const { registerFarmer } = useProfile();
   
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -26,8 +26,9 @@ export default function SignUpScreen({ onSignUp, onNavigateToLogin }) {
   
   const [role, setRole] = useState('Farmer'); // Farmer | Buyer | Distributor
   const [agreed, setAgreed] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     if (!name || !phone || !password) {
       alert('Please fill in all mandatory fields.');
       return;
@@ -40,12 +41,20 @@ export default function SignUpScreen({ onSignUp, onNavigateToLogin }) {
       alert('Please agree to terms and conditions.');
       return;
     }
-    // Set global context
-    saveFarmerProfile({
-      name: name,
-      phone: phone
-    });
-    onSignUp();
+    
+    setLoading(true);
+    try {
+      const res = await registerFarmer(phone, password, name, email);
+      setLoading(false);
+      if (res.success) {
+        onSignUp();
+      } else {
+        alert(res.message);
+      }
+    } catch (e) {
+      setLoading(false);
+      alert('Registration failed. Please check network/settings.');
+    }
   };
 
   return (

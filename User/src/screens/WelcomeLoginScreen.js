@@ -13,11 +13,34 @@ import {
 } from 'react-native';
 import { Eye, EyeOff, Smartphone, Lock, ArrowRight } from 'lucide-react-native';
 import { THEME } from '../context/ThemeContext';
+import { useProfile } from '../context/ProfileContext';
 
 export default function WelcomeLoginScreen({ onLogin, onNavigateToSignUp }) {
+  const { loginFarmer } = useProfile();
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [securePassword, setSecurePassword] = useState(true);
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async () => {
+    if (!phone || !password) {
+      alert('Please enter both mobile number and password.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await loginFarmer(phone, password);
+      setLoading(false);
+      if (res.success) {
+        onLogin();
+      } else {
+        alert(res.message);
+      }
+    } catch (e) {
+      setLoading(false);
+      alert('Login failed. Please check network/settings.');
+    }
+  };
 
   return (
     <ImageBackground 
@@ -56,14 +79,15 @@ export default function WelcomeLoginScreen({ onLogin, onNavigateToSignUp }) {
 
           {/* Form Fields */}
           <View style={styles.formContainer}>
-            {/* Mobile Number */}
+            {/* Mobile Number or Email */}
             <View style={styles.inputWrapper}>
               <Smartphone size={20} color={THEME.textMuted} style={styles.inputIcon} />
               <TextInput 
                 style={styles.textInput} 
-                placeholder="Mobile Number" 
+                placeholder="Mobile Number or Email" 
                 placeholderTextColor={THEME.textMuted}
-                keyboardType="phone-pad"
+                keyboardType="email-address"
+                autoCapitalize="none"
                 value={phone}
                 onChangeText={setPhone}
               />
@@ -94,7 +118,7 @@ export default function WelcomeLoginScreen({ onLogin, onNavigateToSignUp }) {
             </TouchableOpacity>
 
             {/* Login Pill Button */}
-            <TouchableOpacity style={styles.loginBtn} onPress={onLogin}>
+            <TouchableOpacity style={styles.loginBtn} onPress={handleLogin}>
               <Text style={styles.loginBtnText}>Login</Text>
               <View style={styles.arrowCircle}>
                 <ArrowRight size={16} color={THEME.primary} />

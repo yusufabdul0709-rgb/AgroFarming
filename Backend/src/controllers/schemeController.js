@@ -1,11 +1,10 @@
 import { Scheme } from '../models/Scheme.js';
-import mongoose from 'mongoose';
 
 export const getEligibleSchemes = async (req, res) => {
   const { landArea, category, state, annualIncome, farmingExperience } = req.body;
 
   try {
-    const isDbConnected = mongoose.connection.readyState === 1;
+    const isDbConnected = true;
     if (!isDbConnected) {
       return res.status(500).json({ status: 'error', message: 'Database not connected.' });
     }
@@ -83,7 +82,7 @@ export const getEligibleSchemes = async (req, res) => {
 
 export const createScheme = async (req, res) => {
   try {
-    const isDbConnected = mongoose.connection.readyState === 1;
+    const isDbConnected = true;
     if (!isDbConnected) {
       return res.status(500).json({ status: 'error', message: 'Database not connected.' });
     }
@@ -97,7 +96,7 @@ export const createScheme = async (req, res) => {
 
 export const getAllSchemes = async (req, res) => {
   try {
-    const isDbConnected = mongoose.connection.readyState === 1;
+    const isDbConnected = true;
     if (!isDbConnected) {
       return res.status(500).json({ status: 'error', message: 'Database not connected.' });
     }

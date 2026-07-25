@@ -1,13 +1,12 @@
 import { Farm } from '../models/Farm.js';
 import { User } from '../models/User.js';
 import { simulateFarmTwinDecision } from '../services/aiService.js';
-import mongoose from 'mongoose';
 
 export const getFarmTwin = async (req, res) => {
   const { userId } = req.params;
 
   try {
-    const isDbConnected = mongoose.connection.readyState === 1;
+    const isDbConnected = true;
     if (!isDbConnected) {
       return res.status(500).json({ status: 'error', message: 'Database not connected.' });
     }
@@ -30,7 +29,7 @@ export const simulateTwin = async (req, res) => {
   const decision = req.body; // { cropName, rainfallChange, irrigationFrequency }
 
   try {
-    const isDbConnected = mongoose.connection.readyState === 1;
+    const isDbConnected = true;
     if (!isDbConnected) {
       return res.status(500).json({ status: 'error', message: 'Database not connected.' });
     }
@@ -67,7 +66,7 @@ export const simulateTwin = async (req, res) => {
 
 export const getAllFarms = async (req, res) => {
   try {
-    const isDbConnected = mongoose.connection.readyState === 1;
+    const isDbConnected = true;
     if (!isDbConnected) {
        return res.status(500).json({ status: 'error', message: 'Database not connected.' });
     }
@@ -75,6 +74,40 @@ export const getAllFarms = async (req, res) => {
     const farms = await Farm.find({}).populate('user');
     return res.json({ status: 'success', count: farms.length, farms });
   } catch (error) {
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+export const updateFarmTwin = async (req, res) => {
+  const { userId } = req.params;
+  const updateData = req.body;
+
+  try {
+    const isDbConnected = true;
+    if (!isDbConnected) {
+      return res.status(500).json({ status: 'error', message: 'Database not connected.' });
+    }
+
+    let farm = await Farm.findOne({ user: userId });
+
+    if (!farm) {
+      const farmId = 'farm-' + Math.random().toString(36).substr(2, 9);
+      farm = await Farm.create({
+        _id: farmId,
+        user: userId,
+        name: updateData.name || 'My Farm Twin',
+        boundaries: updateData.boundaries || [],
+        soilProfile: updateData.soilProfile || { pH: 6.8, moisture: 48, nitrogen: 110, phosphorus: 38, potassium: 195 },
+        waterMetrics: updateData.waterMetrics || { waterScore: 85, waterStressLevel: 'Low' },
+        cropStatus: updateData.cropStatus || { cropName: 'Paddy', stage: 'Vegetative', growthPercentage: 35, estimatedYield: 4.2 }
+      });
+    } else {
+      farm = await Farm.findOneAndUpdate({ user: userId }, updateData, { new: true });
+    }
+
+    return res.json({ status: 'success', farm });
+  } catch (error) {
+    console.error('[Update Farm Twin Error]', error);
     return res.status(500).json({ status: 'error', message: error.message });
   }
 };

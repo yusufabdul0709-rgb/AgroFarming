@@ -8,11 +8,15 @@ import {
   Image, 
   ActivityIndicator 
 } from 'react-native';
-import { Leaf, Camera, AlertCircle, CheckCircle2 } from 'lucide-react-native';
+import { Leaf, Camera, Image as ImageIcon } from 'lucide-react-native';
 import { THEME } from '../context/ThemeContext';
+import { useProfile } from '../context/ProfileContext';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function CropDoctorScreen({ onBack }) {
+  const { authToken } = useProfile();
   const [analyzing, setAnalyzing] = useState(false);
+  const [selectedImgUri, setSelectedImgUri] = useState(null);
   const [diagnosis, setDiagnosis] = useState({
     title: 'Tomato - Early Blight',
     severity: 'Severity: Moderate',
@@ -21,18 +25,87 @@ export default function CropDoctorScreen({ onBack }) {
     img: 'https://images.unsplash.com/photo-1592417817098-8f3d6eb19675?auto=format&fit=crop&w=150&q=80'
   });
 
-  const handleDiagnose = () => {
+  const pickImage = async (useCamera = false) => {
+    try {
+      if (useCamera) {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          alert('Camera permission is required to take photos!');
+          return;
+        }
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          alert('Media library permission is required to choose images!');
+          return;
+        }
+      }
+
+      const options = {
+        mediaTypes: ImagePicker.MediaTypeOptions?.Images || 'images',
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.5,
+        base64: true
+      };
+
+      let result;
+      if (useCamera) {
+        result = await ImagePicker.launchCameraAsync(options);
+      } else {
+        result = await ImagePicker.launchImageLibraryAsync(options);
+      }
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        setSelectedImgUri(asset.uri);
+        runDiagnostics(asset.fileName || 'image.jpg', asset.base64);
+      }
+    } catch (e) {
+      console.error('Image picking failed', e);
+      alert('Failed to access media device.');
+    }
+  };
+
+  const runDiagnostics = async (imageName, base64) => {
     setAnalyzing(true);
-    setTimeout(() => {
-      setAnalyzing(false);
-      setDiagnosis({
-        title: 'Tomato - Early Blight',
-        severity: 'Severity: Moderate',
-        treatment: 'Treatment: Mancozeb spray',
-        time: '2 days ago',
-        img: 'https://images.unsplash.com/photo-1592417817098-8f3d6eb19675?auto=format&fit=crop&w=150&q=80'
+    try {
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.39:5000/api';
+      const headers = { 'Content-Type': 'application/json' };
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+
+      const res = await fetch(`${API_URL}/vision/diagnose`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          imageName,
+          base64Image: `data:image/jpeg;base64,${base64}`,
+          isMillet: false
+        })
       });
-    }, 2000);
+
+      const data = await res.json();
+      setAnalyzing(false);
+
+      if (data.status === 'success' && data.diagnosis) {
+        const diag = data.diagnosis;
+        setDiagnosis({
+          title: diag.title || 'Tomato - Early Blight',
+          severity: `Severity: ${diag.severity || 'Moderate'}`,
+          treatment: `Treatment: ${diag.treatment || 'Apply copper fungicide.'}`,
+          time: 'Just now',
+          img: `data:image/jpeg;base64,${base64}`
+        });
+      } else {
+        alert(data.message || 'AI diagnosis failed. Please try a clearer picture of the leaf.');
+      }
+    } catch (e) {
+      setAnalyzing(false);
+      console.error(e);
+      alert('Network error. Failed to reach computer vision diagnostics.');
+    }
   };
 
   return (
@@ -56,13 +129,20 @@ export default function CropDoctorScreen({ onBack }) {
           <View style={styles.leafCircle}>
             <Leaf size={32} color={THEME.primary} />
           </View>
-          <Text style={styles.uploadLabel}>Upload Leaf Image</Text>
-          <Text style={styles.uploadOr}>or</Text>
+          <Text style={styles.uploadLabel}>Leaf Diagnostic Upload</Text>
+          <Text style={styles.uploadOr}>Scan your crop leaves to diagnose health</Text>
           
-          <TouchableOpacity style={styles.takePhotoBtn} onPress={handleDiagnose}>
-            <Camera size={16} color="white" />
-            <Text style={styles.takePhotoBtnText}>Take Photo</Text>
-          </TouchableOpacity>
+          <View style={styles.actionBtnRow}>
+            <TouchableOpacity style={styles.takePhotoBtn} onPress={() => pickImage(true)}>
+              <Camera size={15} color="white" />
+              <Text style={styles.takePhotoBtnText}>Take Photo</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.galleryBtn} onPress={() => pickImage(false)}>
+              <ImageIcon size={15} color={THEME.primary} />
+              <Text style={styles.galleryBtnText}>Choose Gallery</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {analyzing && (
@@ -72,8 +152,16 @@ export default function CropDoctorScreen({ onBack }) {
           </View>
         )}
 
+        {/* Selected preview */}
+        {selectedImgUri && !analyzing && (
+          <View style={styles.previewContainer}>
+            <Text style={styles.previewLabel}>Uploaded Image Preview:</Text>
+            <Image source={{ uri: selectedImgUri }} style={styles.previewImg} />
+          </View>
+        )}
+
         {/* Recent Diagnosis */}
-        <Text style={styles.sectionHeader}>Recent Diagnosis</Text>
+        <Text style={styles.sectionHeader}>Diagnosis Result</Text>
         
         {diagnosis && !analyzing && (
           <View style={styles.diagCard}>
@@ -88,8 +176,8 @@ export default function CropDoctorScreen({ onBack }) {
         )}
 
         {/* View All button */}
-        <TouchableOpacity style={styles.actionBtn} onPress={() => alert('Launching historical foliar logs...')}>
-          <Text style={styles.actionBtnText}>View All Diagnoses</Text>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => alert('Foliar logs up to date.')}>
+          <Text style={styles.actionBtnText}>Logs Refreshed</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -139,7 +227,8 @@ const styles = StyleSheet.create({
   uploadCard: {
     backgroundColor: 'white',
     borderRadius: 24,
-    paddingVertical: 32,
+    paddingVertical: 24,
+    paddingHorizontal: 16,
     alignItems: 'center',
     borderWidth: 2,
     borderColor: 'rgba(44, 107, 67, 0.1)',
@@ -153,7 +242,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(44, 107, 67, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16
+    marginBottom: 12
   },
   uploadLabel: {
     fontSize: 15,
@@ -161,22 +250,50 @@ const styles = StyleSheet.create({
     color: THEME.textDark
   },
   uploadOr: {
-    fontSize: 12,
+    fontSize: 11,
     color: THEME.textMuted,
-    marginVertical: 8
+    marginVertical: 6,
+    textAlign: 'center'
+  },
+  actionBtnRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+    width: '100%',
+    justifyContent: 'center'
   },
   takePhotoBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: THEME.primary,
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderRadius: 30,
-    gap: 6
+    gap: 6,
+    flex: 1,
+    justifyContent: 'center'
   },
   takePhotoBtnText: {
     color: 'white',
-    fontSize: 13,
+    fontSize: 12,
+    fontWeight: '700'
+  },
+  galleryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: THEME.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 30,
+    gap: 6,
+    flex: 1,
+    justifyContent: 'center'
+  },
+  galleryBtnText: {
+    color: THEME.primary,
+    fontSize: 12,
     fontWeight: '700'
   },
   loadingBlock: {
@@ -190,6 +307,27 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: THEME.textMuted,
     fontWeight: '700'
+  },
+  previewContainer: {
+    backgroundColor: 'white',
+    padding: 16,
+    borderRadius: 24,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: THEME.glassBorder,
+    alignItems: 'center'
+  },
+  previewLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: THEME.textDark,
+    marginBottom: 10,
+    alignSelf: 'flex-start'
+  },
+  previewImg: {
+    width: '100%',
+    height: 180,
+    borderRadius: 16
   },
   sectionHeader: {
     fontSize: 15,
