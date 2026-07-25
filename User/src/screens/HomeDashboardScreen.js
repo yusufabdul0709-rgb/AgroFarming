@@ -42,14 +42,14 @@ export default function HomeDashboardScreen({ onNavigateTo }) {
   ];
 
   const quickAccessItems = [
+    { key: 'secure-vault', title: 'Secure Vault', emoji: '🔐', color: '#F0F4FF' },
     { key: 'crop-recommendation', title: 'AI Crop Recommendation', emoji: '🌾', color: '#EAF8EE' },
     { key: 'soil-health', title: 'Soil Health', emoji: '🧪', color: '#FDF6EC' },
     { key: 'water-intelligence', title: 'Water Intelligence', emoji: '💧', color: '#EBF6FD' },
     { key: 'market-prices', title: 'Market Prices', emoji: '📈', color: '#F7F1EE' },
     { key: 'millet-scanner', title: 'Millet Scanner', emoji: '🌾', color: '#F3F8F2' },
     { key: 'crop-doctor', title: 'Crop Doctor', emoji: '🐛', color: '#FEF4F4' },
-    { key: 'scheme-finder', title: 'Scheme Finder', emoji: '🏛️', color: '#F5F5FA' },
-    { key: 'ai-assistant', title: 'AI Assistant', emoji: '🤖', color: '#EFF8F7' }
+    { key: 'scheme-finder', title: 'Scheme Finder', emoji: '🏛️', color: '#F5F5FA' }
   ];
 
   return (

@@ -27,6 +27,11 @@ import AIChatScreen from '../screens/AIChatScreen';
 import MarketProduceScreen from '../screens/MarketProduceScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
+// Vault Screens
+import VaultScreen from '../screens/VaultScreen';
+import DocumentUploadScreen from '../screens/DocumentUploadScreen';
+import VaultSchemeMatchingScreen from '../screens/VaultSchemeMatchingScreen';
+
 export default function AppNavigator() {
   const THEME = useTheme();
   const { farmerProfile } = useProfile();
@@ -92,6 +97,12 @@ export default function AppNavigator() {
         return <CropDoctorScreen onBack={() => setCurrentDetailView(null)} />;
       case 'scheme-finder':
         return <SchemeFinderScreen onBack={() => setCurrentDetailView(null)} />;
+      case 'secure-vault':
+        return <VaultScreen onBack={() => setCurrentDetailView(null)} onNavigate={(screen, params) => setCurrentDetailView(screen)} />;
+      case 'vault-upload':
+        return <DocumentUploadScreen onBack={() => setCurrentDetailView('secure-vault')} />;
+      case 'vault-scheme-match':
+        return <VaultSchemeMatchingScreen onBack={() => setCurrentDetailView('secure-vault')} />;
       default:
         return null;
     }

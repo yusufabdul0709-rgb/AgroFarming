@@ -56,9 +56,56 @@ export default function Schemes() {
           </h1>
           <p style={{ margin: '4px 0 0 0', color: '#c2c9bf', fontSize: '14px' }}>Publish and manage subsidy programs linked with automated profile-matching</p>
         </div>
-        <button className="pill-btn" onClick={() => setShowAddForm(!showAddForm)}>
-          <Plus size={16} /> Publish New Scheme
-        </button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button className="pill-btn secondary" onClick={() => {
+            alert('Scraper started in background. New schemes will appear here.');
+          }}>
+            <Calendar size={16} /> Run Daily Scraper
+          </button>
+          <button className="pill-btn" onClick={() => setShowAddForm(!showAddForm)}>
+            <Plus size={16} /> Publish New Scheme
+          </button>
+        </div>
+      </div>
+
+      {/* Scraper Approval Queue */}
+      <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '16px', borderColor: '#F59E0B' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600', color: '#F59E0B', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertCircle size={20} /> Pending Approval (Automated Scraper)
+          </h3>
+          <span style={{ fontSize: '12px', background: 'rgba(245, 158, 11, 0.2)', padding: '4px 10px', borderRadius: '12px', color: '#FCD34D' }}>
+            1 New Scheme Detected
+          </span>
+        </div>
+        <div style={{ backgroundColor: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '12px', border: '1px dashed #F59E0B' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <span style={{ fontWeight: '700', fontSize: '16px', color: 'white' }}>Rythu Bandhu Scheme (Telangana)</span>
+              <p style={{ margin: '6px 0', fontSize: '13px', color: '#c2c9bf' }}>Extracted Benefits: ₹5,000 per acre per season to support initial investment.</p>
+              <div style={{ display: 'flex', gap: '16px', marginTop: '8px', fontSize: '12px', color: '#9CA3AF' }}>
+                <span><b>Max Land:</b> 5 Acres</span>
+                <span><b>Required Docs:</b> Pattadar Passbook, Aadhaar</span>
+                <span><b>Source:</b> telangana.gov.in</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button className="pill-btn secondary" style={{ borderColor: '#EF4444', color: '#EF4444' }} onClick={() => alert('Scheme rejected.')}>Reject</button>
+              <button className="pill-btn" style={{ background: '#F59E0B', color: 'white' }} onClick={() => {
+                setSchemes([{
+                  id: 'scheme-new',
+                  name: 'Rythu Bandhu Scheme',
+                  benefits: '₹5,000 per acre per season.',
+                  maxLand: '5.0 Acres',
+                  categories: 'All',
+                  state: 'Telangana',
+                  deadline: 'Upcoming'
+                }, ...schemes]);
+                alert('Scheme Approved and Published!');
+              }}>Approve & Publish</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {showAddForm && (

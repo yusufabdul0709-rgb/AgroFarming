@@ -1,4 +1,98 @@
 import { Scheme } from '../models/Scheme.js';
+import { pool } from '../config/mysql.js';
+
+export const matchSchemeVault = async (req, res) => {
+  const userId = req.user?._id || req.body.userId;
+  
+  if (!userId) {
+    return res.status(400).json({ status: 'error', message: 'Missing user ID' });
+  }
+
+  try {
+    // 1. Fetch user documents
+    const [docs] = await pool.query('SELECT documentType, issueDate, expiryDate FROM documents WHERE user = ?', [userId]);
+    const userStoredDocTypes = docs.map(d => d.documentType.toLowerCase());
+
+    // 2. Fetch active schemes
+    const activeSchemes = await Scheme.find({});
+    
+    // 3. Match logic
+    const matchedSchemes = activeSchemes.map(scheme => {
+      let requiredDocs = [];
+      try {
+        requiredDocs = scheme.requiredDocuments ? JSON.parse(scheme.requiredDocuments) : [];
+      } catch (e) {
+        requiredDocs = [];
+      }
+      
+      const missingDocs = [];
+      const presentDocs = [];
+
+      requiredDocs.forEach(reqDoc => {
+        if (userStoredDocTypes.includes(reqDoc.toLowerCase())) {
+          presentDocs.push(reqDoc);
+        } else {
+          // Provide instructions for missing doc
+          let howToObtain = 'Visit your nearest MeeSeva / CSC office.';
+          let expectedTime = 7; // days
+          if (reqDoc.toLowerCase().includes('land')) {
+            howToObtain = 'Visit the MRO / Tehsil Office with Survey Number.';
+            expectedTime = 14;
+          } else if (reqDoc.toLowerCase().includes('bank')) {
+            howToObtain = 'Visit your bank branch to get an updated passbook.';
+            expectedTime = 2;
+          }
+
+          missingDocs.push({
+            name: reqDoc,
+            howToObtain,
+            expectedProcessingTimeDays: expectedTime,
+            priority: 'High'
+          });
+        }
+      });
+
+      const totalRequired = requiredDocs.length;
+      const totalPresent = presentDocs.length;
+      const readinessScore = totalRequired === 0 ? 100 : Math.round((totalPresent / totalRequired) * 100);
+
+      // Smart Timeline
+      let deadlineDays = null;
+      let timelineRecommendation = 'Apply immediately.';
+      
+      if (scheme.deadline) {
+        const diffTime = Math.abs(new Date(scheme.deadline) - new Date());
+        deadlineDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        const totalEstimatedProcessing = missingDocs.reduce((acc, curr) => acc + curr.expectedProcessingTimeDays, 0);
+        
+        if (totalEstimatedProcessing === 0) {
+          timelineRecommendation = 'Everything is Ready. Click Apply.';
+        } else if (deadlineDays > totalEstimatedProcessing) {
+          timelineRecommendation = `You still have enough time. Collect missing documents first. Expected completion: within ${totalEstimatedProcessing} days.`;
+        } else {
+          timelineRecommendation = `WARNING: Deadline is closing in ${deadlineDays} days, but documents might take ${totalEstimatedProcessing} days. Act immediately!`;
+        }
+      }
+
+      return {
+        ...JSON.parse(JSON.stringify(scheme)),
+        readinessScore,
+        presentDocs,
+        missingDocs,
+        smartTimeline: {
+          deadlineDaysRemaining: deadlineDays,
+          recommendation: timelineRecommendation
+        }
+      };
+    });
+
+    res.json({ status: 'success', schemes: matchedSchemes });
+  } catch (error) {
+    console.error('[Vault Scheme Match Error]', error);
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
 
 export const getEligibleSchemes = async (req, res) => {
   const { landArea, category, state, annualIncome, farmingExperience } = req.body;

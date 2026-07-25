@@ -111,6 +111,26 @@ export default function Sidebar({ activeTab, setActiveTab, dbStatus, aiStatus })
           >
             <Database size={18} /> RAG Knowledge Base
           </button>
+          <button 
+            onClick={() => setActiveTab('vault-analytics')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '12px 16px',
+              borderRadius: '14px',
+              border: 'none',
+              background: activeTab === 'vault-analytics' ? 'rgba(76, 175, 80, 0.15)' : 'transparent',
+              color: activeTab === 'vault-analytics' ? '#81C784' : '#c2c9bf',
+              fontWeight: activeTab === 'vault-analytics' ? '600' : '400',
+              fontSize: '14px',
+              cursor: 'pointer',
+              textAlign: 'left',
+              transition: 'all 0.2s'
+            }}
+          >
+            <Database size={18} /> Vault Analytics
+          </button>
         </div>
       </div>
 

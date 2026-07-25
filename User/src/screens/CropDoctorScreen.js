@@ -42,10 +42,8 @@ export default function CropDoctorScreen({ onBack }) {
       }
 
       const options = {
-        mediaTypes: ImagePicker.MediaTypeOptions?.Images || 'images',
-        allowsEditing: true,
+        mediaTypes: 'images',
         aspect: [4, 3],
-        quality: 0.5,
         base64: true
       };
 

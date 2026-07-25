@@ -142,6 +142,7 @@ const serializeFields = (data) => {
 
 const performPopulate = async (item, path, selectFields) => {
   if (!item || !item[path]) return item;
+  if (!pool) return item;
   const collectionName = path === 'user' ? 'users' : path + 's';
   const referencedId = item[path];
   
@@ -177,6 +178,7 @@ export const createModelWrapper = (collectionName) => {
   return {
     find: (query = {}) => {
       return new ModelQuery(collectionName, async () => {
+        if (!pool) return [];
         const keys = Object.keys(query);
         if (keys.length === 0) {
           const [rows] = await pool.query(`SELECT * FROM \`${collectionName}\``);
@@ -194,6 +196,7 @@ export const createModelWrapper = (collectionName) => {
 
     findOne: (query = {}) => {
       return new ModelQuery(collectionName, async () => {
+        if (!pool) return null;
         const keys = Object.keys(query);
         let rows;
         if (keys.length === 0) {
@@ -212,6 +215,7 @@ export const createModelWrapper = (collectionName) => {
 
     findById: (id) => {
       return new ModelQuery(collectionName, async () => {
+        if (!pool) return null;
         const [rows] = await pool.query(`SELECT * FROM \`${collectionName}\` WHERE _id = ? LIMIT 1`, [id]);
         return rows && rows.length > 0 ? rows[0] : null;
       });
@@ -220,8 +224,17 @@ export const createModelWrapper = (collectionName) => {
     create: async (data) => {
       const id = data._id || `mock-${collectionName.slice(0, -1)}-${Date.now()}`;
       const fullData = { _id: id, ...data };
-      const serialized = serializeFields(fullData);
       
+      const created = parseRow(fullData);
+      created.toObject = function() {
+        const res = { ...this };
+        delete res.toObject;
+        return res;
+      };
+
+      if (!pool) return created;
+
+      const serialized = serializeFields(fullData);
       const columns = Object.keys(serialized);
       const placeholders = columns.map(() => '?').join(', ');
       const columnNames = columns.map(c => `\`${c}\``).join(', ');
@@ -232,17 +245,12 @@ export const createModelWrapper = (collectionName) => {
         values
       );
       
-      const created = parseRow(fullData);
-      created.toObject = function() {
-        const res = { ...this };
-        delete res.toObject;
-        return res;
-      };
       return created;
     },
 
     findByIdAndUpdate: (id, update, options = {}) => {
       return new ModelQuery(collectionName, async () => {
+        if (!pool) return { _id: id, ...update };
         const serialized = serializeFields(update);
         const keys = Object.keys(serialized);
         if (keys.length === 0) {

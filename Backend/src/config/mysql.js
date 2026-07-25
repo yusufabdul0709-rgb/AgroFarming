@@ -251,6 +251,23 @@ const createTables = async () => {
     );
   `);
 
+  // Documents table (Kissan Secure Vault)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS documents (
+      _id VARCHAR(255) PRIMARY KEY,
+      user VARCHAR(255) NOT NULL,
+      category VARCHAR(255),
+      documentType VARCHAR(255),
+      documentNumber VARCHAR(255),
+      extractedMetadata TEXT,
+      encryptedUrl TEXT,
+      issueDate DATETIME,
+      expiryDate DATETIME,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    );
+  `);
+
   console.log('[MySQL] Tables verified/created.');
 };
 

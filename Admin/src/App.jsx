@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import Farmers from './pages/Farmers';
 import Schemes from './pages/Schemes';
 import AIKB from './pages/AIKB';
+import VaultAnalytics from './pages/VaultAnalytics';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -23,6 +24,8 @@ export default function App() {
         return <Schemes />;
       case 'aikb':
         return <AIKB />;
+      case 'vault-analytics':
+        return <VaultAnalytics />;
       default:
         return <Dashboard />;
     }
@@ -34,6 +37,7 @@ export default function App() {
       case 'farmers': return 'Farmer Digital Twins';
       case 'schemes': return 'Government Scheme Manager';
       case 'aikb': return 'RAG Knowledge Base & Embeddings';
+      case 'vault-analytics': return 'Secure Vault Analytics';
       default: return 'ApnaKissan Admin';
     }
   };

@@ -2,10 +2,12 @@ import express from 'express';
 import { registerOrLogin, updateProfile, getAllFarmers, syncProfile } from '../controllers/authController.js';
 import { getFarmTwin, simulateTwin, getAllFarms, updateFarmTwin } from '../controllers/farmController.js';
 import { getPrices, getMarketplaceListings, createMarketplaceListing } from '../controllers/marketController.js';
-import { getEligibleSchemes, createScheme, getAllSchemes } from '../controllers/schemeController.js';
+import { getEligibleSchemes, createScheme, getAllSchemes, matchSchemeVault } from '../controllers/schemeController.js';
 import { diagnoseCrop } from '../controllers/visionController.js';
 import { handleAIChat, handleAIVision } from '../controllers/aiController.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
+
+import { uploadDocument, getDocuments, decryptDocument } from '../controllers/vaultController.js';
 
 export const apiRouter = express.Router();
 
@@ -28,8 +30,14 @@ apiRouter.post('/market/produce', authMiddleware, createMarketplaceListing);
 
 // Schemes matching routes
 apiRouter.post('/schemes/match', getEligibleSchemes);
+apiRouter.post('/schemes/vault-match', authMiddleware, matchSchemeVault);
 apiRouter.get('/schemes/all', getAllSchemes);
 apiRouter.post('/schemes/create', createScheme);
+
+// Kissan Secure Vault routes
+apiRouter.post('/vault/upload', authMiddleware, uploadDocument);
+apiRouter.get('/vault/documents', authMiddleware, getDocuments);
+apiRouter.get('/vault/document/:id/decrypt', authMiddleware, decryptDocument);
 
 // Computer Vision routes
 apiRouter.post('/vision/diagnose', diagnoseCrop);

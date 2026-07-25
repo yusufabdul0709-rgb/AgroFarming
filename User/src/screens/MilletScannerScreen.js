@@ -45,10 +45,8 @@ export default function MilletScannerScreen({ onBack }) {
       }
 
       const options = {
-        mediaTypes: ImagePicker.MediaTypeOptions?.Images || 'images',
-        allowsEditing: true,
+        mediaTypes: 'images',
         aspect: [1, 1],
-        quality: 0.5,
         base64: true
       };
 
