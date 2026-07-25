@@ -1,7 +1,6 @@
 import { orchestrateMultiAgentAI } from '../services/aiService.js';
 import { User } from '../models/User.js';
 import { MOCK_USERS } from './authController.js';
-import mongoose from 'mongoose';
 
 export const handleAIChat = async (req, res) => {
   const { prompt, userId, language } = req.body;
@@ -12,7 +11,7 @@ export const handleAIChat = async (req, res) => {
 
   try {
     let user = null;
-    const isDbConnected = mongoose.connection.readyState === 1;
+    const isDbConnected = true;
 
     if (userId) {
       if (isDbConnected) {

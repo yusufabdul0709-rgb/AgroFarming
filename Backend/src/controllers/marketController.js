@@ -1,6 +1,5 @@
 import { Produce } from '../models/Produce.js';
 import { getMarketIntel } from '../services/marketService.js';
-import mongoose from 'mongoose';
 
 export const getPrices = async (req, res) => {
   const { cropName, district } = req.query;
@@ -14,7 +13,7 @@ export const getPrices = async (req, res) => {
 
 export const getMarketplaceListings = async (req, res) => {
   try {
-    const isDbConnected = mongoose.connection.readyState === 1;
+    const isDbConnected = true;
     if (!isDbConnected) {
       return res.status(500).json({ status: 'error', message: 'Database not connected.' });
     }
@@ -34,7 +33,7 @@ export const createMarketplaceListing = async (req, res) => {
   }
 
   try {
-    const isDbConnected = mongoose.connection.readyState === 1;
+    const isDbConnected = true;
     if (!isDbConnected) {
       return res.status(500).json({ status: 'error', message: 'Database not connected.' });
     }

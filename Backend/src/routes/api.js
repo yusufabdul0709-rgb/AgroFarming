@@ -1,6 +1,6 @@
 import express from 'express';
-import { registerOrLogin, updateProfile, getAllFarmers } from '../controllers/authController.js';
-import { getFarmTwin, simulateTwin, getAllFarms } from '../controllers/farmController.js';
+import { registerOrLogin, updateProfile, getAllFarmers, syncProfile } from '../controllers/authController.js';
+import { getFarmTwin, simulateTwin, getAllFarms, updateFarmTwin } from '../controllers/farmController.js';
 import { getPrices, getMarketplaceListings, createMarketplaceListing } from '../controllers/marketController.js';
 import { getEligibleSchemes, createScheme, getAllSchemes } from '../controllers/schemeController.js';
 import { diagnoseCrop } from '../controllers/visionController.js';
@@ -11,11 +11,13 @@ export const apiRouter = express.Router();
 
 // Authentication / Farmers routes
 apiRouter.post('/auth/login', registerOrLogin);
+apiRouter.post('/auth/sync', authMiddleware, syncProfile);
 apiRouter.put('/auth/profile/:userId', authMiddleware, updateProfile);
 apiRouter.get('/auth/farmers', getAllFarmers);
 
 // Digital Farm Twin routes
 apiRouter.get('/farm/twin/:userId', authMiddleware, getFarmTwin);
+apiRouter.put('/farm/twin/:userId', authMiddleware, updateFarmTwin);
 apiRouter.post('/farm/simulate/:userId', authMiddleware, simulateTwin);
 apiRouter.get('/farm/twins', getAllFarms);
 

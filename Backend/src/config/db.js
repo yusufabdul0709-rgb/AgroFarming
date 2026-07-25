@@ -1,21 +1,13 @@
-import mongoose from 'mongoose';
+import { initMySQL } from './mysql.js';
 
 export const connectDB = async () => {
-  const mongoUri = process.env.MONGODB_URI;
-  
-  if (!mongoUri) {
-    console.warn('[DB] MONGODB_URI not found in env. Running in localized lowdb/mock memory mode.');
-    return Promise.resolve(false);
-  }
-
   try {
-    const conn = await mongoose.connect(mongoUri, {
-      serverSelectionTimeoutMS: 5000,
-    });
-    console.log(`[DB] MongoDB Connected: ${conn.connection.host}`);
+    await initMySQL();
+    console.log('[DB] MySQL Database connected and tables initialized.');
     return true;
   } catch (error) {
-    console.error(`[DB] Connection error: ${error.message}`);
+    console.error(`[DB] MySQL Connection failed: ${error.message}`);
+    console.error('[DB] Please make sure MySQL server is running and your .env credentials match.');
     throw error;
   }
 };
