@@ -1,6 +1,5 @@
 import { orchestrateMultiAgentAI } from '../services/aiService.js';
 import { User } from '../models/User.js';
-import { MOCK_USERS } from './authController.js';
 import mongoose from 'mongoose';
 
 export const handleAIChat = async (req, res) => {
@@ -18,7 +17,7 @@ export const handleAIChat = async (req, res) => {
       if (isDbConnected) {
         user = await User.findById(userId);
       } else {
-        user = MOCK_USERS.find(u => u._id === userId);
+        user = null;
       }
     }
 
