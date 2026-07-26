@@ -1,38 +1,271 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { ShieldCheck, FileText, UploadCloud, ChevronRight, Landmark, CreditCard, Leaf, Map, Search, ArrowLeft } from 'lucide-react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  TouchableOpacity, 
+  ActivityIndicator, 
+  TextInput,
+  Modal,
+  Image,
+  RefreshControl,
+  Dimensions,
+  Alert
+} from 'react-native';
+import { 
+  ShieldCheck, 
+  FileText, 
+  UploadCloud, 
+  ChevronRight, 
+  Landmark, 
+  CreditCard, 
+  Leaf, 
+  Map, 
+  Search, 
+  ArrowLeft,
+  X,
+  Lock,
+  Unlock,
+  AlertTriangle,
+  Trash2,
+  Edit3,
+  Save,
+  ChevronDown
+} from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useProfile } from '../context/ProfileContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const { width } = Dimensions.get('window');
+
+const DOC_NAMES = [
+  'Aadhaar Card',
+  'Land Registry Copy',
+  'Ration Card',
+  'Registration Certificate',
+  'Income Certificate',
+  'Caste Certificate',
+  'Bank Passbook',
+  'Sowing Certificate'
+];
+
+const DOC_FORMATS = ['Image', 'PDF', 'Word', 'Excel'];
+const DOC_CATEGORIES = ['Personal', 'Land', 'Banking', 'Agriculture'];
 
 export default function VaultScreen({ onBack, onNavigate }) {
   const THEME = useTheme();
-  const { farmerProfile } = useProfile();
+  
+  // Data states
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [documents, setDocuments] = useState([]);
+  
+  // Search & Filter states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState(null);
+
+  // Decryption & Modal states
+  const [decryptingDocId, setDecryptingDocId] = useState(null);
+  const [decryptedImage, setDecryptedImage] = useState(null);
+  const [decryptedMetadata, setDecryptedMetadata] = useState(null);
+
+  // Editing states in Modal
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editFormat, setEditFormat] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+
+  // Dropdown open states in Modal
+  const [showEditNameList, setShowEditNameList] = useState(false);
+  const [showEditFormatList, setShowEditFormatList] = useState(false);
+  const [showEditCategoryList, setShowEditCategoryList] = useState(false);
+  const [updating, setUpdating] = useState(false);
+
+  const fetchDocuments = async (showLoadingIndicator = true) => {
+    if (showLoadingIndicator) setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('@farmer_token');
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.76.22.64:5000/api';
+      
+      const res = await fetch(`${API_URL}/vault/documents`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setDocuments(data.documents || []);
+      }
+    } catch (err) {
+      console.error('[Fetch Vault Error]', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    // Mock fetching documents on load
-    setTimeout(() => {
-      setDocuments([
-        { id: 1, type: 'Aadhaar Card', category: 'Personal', status: 'Verified' },
-        { id: 2, type: 'Bank Passbook', category: 'Banking', status: 'Verified' }
-      ]);
-      setLoading(false);
-    }, 1000);
+    fetchDocuments();
   }, []);
 
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchDocuments(false);
+  };
+
+  const handleDecryptAndPreview = async (doc) => {
+    if (decryptingDocId) return; // Prevent double taps
+    setDecryptingDocId(doc._id);
+    try {
+      const token = await AsyncStorage.getItem('@farmer_token');
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.76.22.64:5000/api';
+      
+      const res = await fetch(`${API_URL}/vault/document/${doc._id}/decrypt`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setDecryptedImage(data.fileDataUrl);
+        setDecryptedMetadata(doc);
+        
+        // Populate edit inputs
+        setEditName(doc.documentType || 'Aadhaar Card');
+        setEditFormat(doc.format || 'Image');
+        setEditCategory(doc.category || 'Personal');
+        setIsEditing(false);
+      } else {
+        alert('Failed to decrypt document: ' + data.message);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Network error. Failed to decrypt file.');
+    } finally {
+      setDecryptingDocId(null);
+    }
+  };
+
+  const handleUpdateDocument = async () => {
+    setUpdating(true);
+    try {
+      const token = await AsyncStorage.getItem('@farmer_token');
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.76.22.64:5000/api';
+      
+      const res = await fetch(`${API_URL}/vault/document/${decryptedMetadata._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          documentType: editName,
+          category: editCategory,
+          format: editFormat
+        })
+      });
+
+      const data = await res.json();
+      if (data.status === 'success') {
+        // Update local state details
+        setDecryptedMetadata(prev => ({
+          ...prev,
+          documentType: editName,
+          category: editCategory,
+          format: editFormat
+        }));
+        setIsEditing(false);
+        fetchDocuments(false);
+        Alert.alert('Success', 'Document details updated successfully.');
+      } else {
+        alert('Failed to update details: ' + data.message);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Network error. Failed to save updates.');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleDeleteDocument = () => {
+    Alert.alert(
+      'Delete Document',
+      'Are you sure you want to permanently delete this document from your secure vault?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const token = await AsyncStorage.getItem('@farmer_token');
+              const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.76.22.64:5000/api';
+              
+              const res = await fetch(`${API_URL}/vault/document/${decryptedMetadata._id}`, {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${token}`
+                }
+              });
+              const data = await res.json();
+              if (data.status === 'success') {
+                setDecryptedImage(null);
+                setDecryptedMetadata(null);
+                fetchDocuments(false);
+                Alert.alert('Deleted', 'Document has been removed from the vault.');
+              } else {
+                alert('Failed to delete document: ' + data.message);
+              }
+            } catch (err) {
+              console.error(err);
+              alert('Network error. Failed to delete document.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const getCategoryCount = (catName) => {
+    return documents.filter(doc => (doc.category || '').toLowerCase() === catName.toLowerCase()).length;
+  };
+
+  const handleCategoryPress = (categoryName) => {
+    if (selectedCategoryFilter === categoryName) {
+      setSelectedCategoryFilter(null);
+    } else {
+      setSelectedCategoryFilter(categoryName);
+    }
+  };
+
+  // Filter logic
+  const filteredDocs = documents.filter(doc => {
+    const matchesSearch = 
+      (doc.documentType || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (doc.documentNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (doc.extractedMetadata?.name || '').toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesCategory = selectedCategoryFilter 
+      ? (doc.category || '').toLowerCase() === selectedCategoryFilter.toLowerCase()
+      : true;
+
+    return matchesSearch && matchesCategory;
+  });
+
   const categories = [
-    { name: 'Personal', icon: <CreditCard size={24} color={THEME.primary} />, count: 1 },
-    { name: 'Land', icon: <Map size={24} color="#F59E0B" />, count: 0 },
-    { name: 'Banking', icon: <Landmark size={24} color="#3B82F6" />, count: 1 },
-    { name: 'Agriculture', icon: <Leaf size={24} color="#10B981" />, count: 0 },
+    { name: 'Personal', icon: <CreditCard size={20} color={selectedCategoryFilter === 'Personal' ? 'white' : THEME.primary} />, count: getCategoryCount('Personal') },
+    { name: 'Land', icon: <Map size={20} color={selectedCategoryFilter === 'Land' ? 'white' : '#F59E0B'} />, count: getCategoryCount('Land') },
+    { name: 'Banking', icon: <Landmark size={20} color={selectedCategoryFilter === 'Banking' ? 'white' : '#3B82F6'} />, count: getCategoryCount('Banking') },
+    { name: 'Agriculture', icon: <Leaf size={20} color={selectedCategoryFilter === 'Agriculture' ? 'white' : '#10B981'} />, count: getCategoryCount('Agriculture') },
   ];
 
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: THEME.bg, justifyContent: 'center' }]}>
         <ActivityIndicator size="large" color={THEME.primary} />
-        <Text style={{ marginTop: 10, color: THEME.textMuted }}>Unlocking Secure Vault...</Text>
+        <Text style={{ marginTop: 10, color: THEME.textMuted, fontWeight: '700' }}>Unlocking Secure Vault...</Text>
       </View>
     );
   }
@@ -48,11 +281,18 @@ export default function VaultScreen({ onBack, onNavigate }) {
         <ShieldCheck size={28} color="white" />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[THEME.primary]} />
+        }
+      >
         {/* Banner */}
         <View style={styles.bannerContainer}>
-          <Text style={styles.bannerTitle}>End-to-End Encrypted</Text>
-          <Text style={styles.bannerSub}>Your documents are encrypted using AES-256 and stored securely. Only you and the AI Scheme Matcher can read them.</Text>
+          <Text style={styles.bannerTitle}>End-to-End Encrypted Storage</Text>
+          <Text style={styles.bannerSub}>
+            Documents are encrypted using AES-256 standard and stored. Only you and the AI Scheme Matcher can read them.
+          </Text>
         </View>
 
         {/* Action Buttons */}
@@ -62,7 +302,7 @@ export default function VaultScreen({ onBack, onNavigate }) {
             onPress={() => onNavigate('vault-upload')}
           >
             <UploadCloud size={20} color="white" />
-            <Text style={styles.actionBtnText}>Upload Document</Text>
+            <Text style={styles.actionBtnText}>Upload Doc</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -74,40 +314,336 @@ export default function VaultScreen({ onBack, onNavigate }) {
           </TouchableOpacity>
         </View>
 
-        <Text style={[styles.sectionTitle, { color: THEME.text }]}>Categories</Text>
+        {/* Search Bar */}
+        <View style={styles.searchBarContainer}>
+          <Search size={18} color="#9CA3AF" style={{ marginRight: 8 }} />
+          <TextInput
+            placeholder="Search documents by name or number..."
+            placeholderTextColor="#9CA3AF"
+            style={styles.searchInput}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery !== '' && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <X size={16} color="#9CA3AF" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Categories Section */}
+        <View style={styles.sectionHeaderRow}>
+          <Text style={[styles.sectionTitle, { color: THEME.text }]}>Vault Categories</Text>
+          {selectedCategoryFilter && (
+            <TouchableOpacity onPress={() => setSelectedCategoryFilter(null)}>
+              <Text style={[styles.clearFilterText, { color: THEME.primary }]}>Show All</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         
         {/* Categories Grid */}
         <View style={styles.grid}>
-          {categories.map((cat, idx) => (
-            <TouchableOpacity key={idx} style={[styles.card, { borderColor: THEME.glassBorder }]}>
-              <View style={styles.cardHeader}>
-                <View style={styles.iconBox}>{cat.icon}</View>
-                <Text style={styles.countBadge}>{cat.count} Docs</Text>
-              </View>
-              <Text style={[styles.cardTitle, { color: THEME.text }]}>{cat.name}</Text>
-            </TouchableOpacity>
-          ))}
+          {categories.map((cat, idx) => {
+            const isSelected = selectedCategoryFilter === cat.name;
+            return (
+              <TouchableOpacity 
+                key={idx} 
+                style={[
+                  styles.card, 
+                  { borderColor: isSelected ? THEME.primary : THEME.glassBorder },
+                  isSelected && { backgroundColor: THEME.primary }
+                ]}
+                onPress={() => handleCategoryPress(cat.name)}
+              >
+                <View style={styles.cardHeader}>
+                  <View style={[styles.iconBox, isSelected && { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                    {cat.icon}
+                  </View>
+                  <Text style={[styles.countBadge, isSelected && { color: 'white', backgroundColor: 'rgba(255,255,255,0.25)' }]}>
+                    {cat.count} {cat.count === 1 ? 'Doc' : 'Docs'}
+                  </Text>
+                </View>
+                <Text style={[styles.cardTitle, { color: isSelected ? 'white' : THEME.text }]}>
+                  {cat.name}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
-        <Text style={[styles.sectionTitle, { color: THEME.text, marginTop: 24 }]}>Recent Documents</Text>
+        {/* Document List */}
+        <Text style={[styles.sectionTitle, { color: THEME.text, marginTop: 24 }]}>
+          {selectedCategoryFilter ? `${selectedCategoryFilter} Documents` : 'Recent Documents'}
+        </Text>
 
-        {documents.map(doc => (
-          <View key={doc.id} style={[styles.docList, { borderColor: THEME.glassBorder }]}>
-            <View style={styles.docLeft}>
-              <FileText size={20} color={THEME.textMuted} />
-              <View style={{ marginLeft: 12 }}>
-                <Text style={[styles.docTitle, { color: THEME.text }]}>{doc.type}</Text>
-                <Text style={[styles.docSub, { color: THEME.textMuted }]}>{doc.category}</Text>
-              </View>
-            </View>
-            <View style={styles.badgeContainer}>
-              <Text style={styles.badgeText}>{doc.status}</Text>
-              <ChevronRight size={16} color={THEME.textMuted} />
-            </View>
+        {filteredDocs.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <FileText size={48} color="#D1D5DB" />
+            <Text style={styles.emptyText}>No documents found matching search</Text>
           </View>
-        ))}
-
+        ) : (
+          filteredDocs.map(doc => {
+            const isDecrypting = decryptingDocId === doc._id;
+            return (
+              <TouchableOpacity 
+                key={doc._id} 
+                style={[styles.docList, { borderColor: THEME.glassBorder }]}
+                onPress={() => handleDecryptAndPreview(doc)}
+                disabled={isDecrypting}
+              >
+                <View style={styles.docLeft}>
+                  {isDecrypting ? (
+                    <ActivityIndicator size="small" color={THEME.primary} style={{ marginRight: 8 }} />
+                  ) : (
+                    <FileText size={20} color={THEME.textMuted} />
+                  )}
+                  <View style={{ marginLeft: 12, flex: 1 }}>
+                    <Text style={[styles.docTitle, { color: THEME.text }]} numberOfLines={1}>
+                      {doc.documentType || 'Personal Document'}
+                    </Text>
+                    <Text style={[styles.docSub, { color: THEME.textMuted }]}>
+                      {doc.category} • {doc.format || 'Image'}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.badgeContainer}>
+                  <View style={styles.lockBadge}>
+                    <Lock size={10} color="#10B981" style={{ marginRight: 2 }} />
+                    <Text style={styles.badgeText}>AES-256</Text>
+                  </View>
+                  <ChevronRight size={16} color={THEME.textMuted} />
+                </View>
+              </TouchableOpacity>
+            );
+          })
+        )}
       </ScrollView>
+
+      {/* Decrypt & Preview Modal */}
+      <Modal
+        visible={decryptedImage !== null}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => {
+          setDecryptedImage(null);
+          setDecryptedMetadata(null);
+          setIsEditing(false);
+        }}
+      >
+        <View style={styles.modalBg}>
+          <View style={[styles.modalContent, isEditing && { height: '80%' }]}>
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderTitleGrp}>
+                <Unlock size={18} color="#10B981" style={{ marginRight: 6 }} />
+                <Text style={styles.modalTitle} numberOfLines={1}>
+                  {isEditing ? 'Edit Document Details' : decryptedMetadata?.documentType}
+                </Text>
+              </View>
+              <TouchableOpacity 
+                onPress={() => {
+                  setDecryptedImage(null);
+                  setDecryptedMetadata(null);
+                  setIsEditing(false);
+                }}
+                style={styles.closeBtn}
+              >
+                <X size={20} color="#374151" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {isEditing ? (
+                /* EDIT DETAILS VIEW */
+                <View style={styles.editForm}>
+                  
+                  {/* Edit Name Dropdown */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Document Name:</Text>
+                    <TouchableOpacity 
+                      style={styles.dropdownTrigger} 
+                      onPress={() => {
+                        setShowEditNameList(!showEditNameList);
+                        setShowEditFormatList(false);
+                        setShowEditCategoryList(false);
+                      }}
+                    >
+                      <Text style={styles.dropdownTriggerText}>{editName}</Text>
+                      <ChevronDown size={18} color={THEME.textDark} />
+                    </TouchableOpacity>
+                    {showEditNameList && (
+                      <View style={styles.dropdownOptions}>
+                        {DOC_NAMES.map(name => (
+                          <TouchableOpacity 
+                            key={name} 
+                            style={styles.dropdownOption} 
+                            onPress={() => {
+                              setEditName(name);
+                              setShowEditNameList(false);
+                            }}
+                          >
+                            <Text style={styles.dropdownOptionText}>{name}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Edit Format Dropdown */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Format:</Text>
+                    <TouchableOpacity 
+                      style={styles.dropdownTrigger} 
+                      onPress={() => {
+                        setShowEditFormatList(!showEditFormatList);
+                        setShowEditNameList(false);
+                        setShowEditCategoryList(false);
+                      }}
+                    >
+                      <Text style={styles.dropdownTriggerText}>{editFormat}</Text>
+                      <ChevronDown size={18} color={THEME.textDark} />
+                    </TouchableOpacity>
+                    {showEditFormatList && (
+                      <View style={styles.dropdownOptions}>
+                        {DOC_FORMATS.map(f => (
+                          <TouchableOpacity 
+                            key={f} 
+                            style={styles.dropdownOption} 
+                            onPress={() => {
+                              setEditFormat(f);
+                              setShowEditFormatList(false);
+                            }}
+                          >
+                            <Text style={styles.dropdownOptionText}>{f}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Edit Category Dropdown */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Secure Vault Category:</Text>
+                    <TouchableOpacity 
+                      style={styles.dropdownTrigger} 
+                      onPress={() => {
+                        setShowEditCategoryList(!showEditCategoryList);
+                        setShowEditNameList(false);
+                        setShowEditFormatList(false);
+                      }}
+                    >
+                      <Text style={styles.dropdownTriggerText}>{editCategory}</Text>
+                      <ChevronDown size={18} color={THEME.textDark} />
+                    </TouchableOpacity>
+                    {showEditCategoryList && (
+                      <View style={styles.dropdownOptions}>
+                        {DOC_CATEGORIES.map(cat => (
+                          <TouchableOpacity 
+                            key={cat} 
+                            style={styles.dropdownOption} 
+                            onPress={() => {
+                              setEditCategory(cat);
+                              setShowEditCategoryList(false);
+                            }}
+                          >
+                            <Text style={styles.dropdownOptionText}>{cat}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Save/Cancel Buttons Row */}
+                  <View style={styles.editActionRow}>
+                    <TouchableOpacity 
+                      style={[styles.modalActionBtn, { backgroundColor: THEME.primary }]}
+                      onPress={handleUpdateDocument}
+                      disabled={updating}
+                    >
+                      {updating ? (
+                        <ActivityIndicator size="small" color="white" />
+                      ) : (
+                        <>
+                          <Save size={16} color="white" style={{ marginRight: 6 }} />
+                          <Text style={styles.modalActionBtnText}>Save Updates</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.modalActionBtn, { backgroundColor: '#9CA3AF' }]}
+                      onPress={() => setIsEditing(false)}
+                    >
+                      <Text style={styles.modalActionBtnText}>Cancel</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                /* PREVIEW & METADATA VIEW */
+                <>
+                  <View style={styles.modalMetaInfo}>
+                    <View style={styles.modalMetaRow}>
+                      <Text style={styles.modalMetaLabel}>Doc Number: </Text>
+                      <Text style={styles.modalMetaVal}>{decryptedMetadata?.documentNumber || 'N/A'}</Text>
+                    </View>
+                    <View style={styles.modalMetaRow}>
+                      <Text style={styles.modalMetaLabel}>Category: </Text>
+                      <Text style={styles.modalMetaVal}>{decryptedMetadata?.category}</Text>
+                    </View>
+                    {decryptedMetadata?.extractedMetadata?.name && (
+                      <View style={styles.modalMetaRow}>
+                        <Text style={styles.modalMetaLabel}>Owner Name: </Text>
+                        <Text style={styles.modalMetaVal}>{decryptedMetadata.extractedMetadata.name}</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Decrypted Content */}
+                  <View style={styles.imageContainer}>
+                    {decryptedImage && decryptedImage.startsWith('data:image') ? (
+                      <Image 
+                        source={{ uri: decryptedImage }} 
+                        style={styles.decryptedPreview} 
+                        resizeMode="contain"
+                      />
+                    ) : (
+                      <View style={styles.unsupportedFormatBox}>
+                        <AlertTriangle size={32} color="#F59E0B" />
+                        <Text style={styles.unsupportedText}>
+                          This format ({decryptedMetadata?.format || 'PDF/Doc'}) cannot be previewed directly as an image, but it is stored securely.
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Action buttons under preview (Edit / Delete) */}
+                  <View style={styles.previewActionRow}>
+                    <TouchableOpacity 
+                      style={[styles.previewActionBtn, { backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#D1D5DB' }]}
+                      onPress={() => setIsEditing(true)}
+                    >
+                      <Edit3 size={16} color="#374151" style={{ marginRight: 6 }} />
+                      <Text style={[styles.previewActionBtnText, { color: '#374151' }]}>Edit Details</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                      style={[styles.previewActionBtn, { backgroundColor: '#FEE2E2' }]}
+                      onPress={handleDeleteDocument}
+                    >
+                      <Trash2 size={16} color="#EF4444" style={{ marginRight: 6 }} />
+                      <Text style={[styles.previewActionBtnText, { color: '#EF4444' }]}>Delete Doc</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.decryptedNotice}>
+                    <ShieldCheck size={14} color="#10B981" style={{ marginRight: 4 }} />
+                    <Text style={styles.decryptedNoticeText}>Decrypted securely in-memory</Text>
+                  </View>
+                </>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -124,18 +660,9 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
   },
-  backButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: 'white',
-  },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 100,
-  },
+  backButton: { padding: 4 },
+  headerTitle: { fontSize: 20, fontWeight: '700', color: 'white' },
+  scrollContent: { padding: 16, paddingBottom: 100 },
   bannerContainer: {
     backgroundColor: '#EEF2FF',
     padding: 16,
@@ -144,124 +671,275 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#C7D2FE',
   },
-  bannerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#3730A3',
-    marginBottom: 6,
-  },
-  bannerSub: {
-    fontSize: 13,
-    color: '#4F46E5',
-    lineHeight: 18,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
-  },
+  bannerTitle: { fontSize: 15, fontWeight: '800', color: '#3730A3', marginBottom: 4 },
+  bannerSub: { fontSize: 12, color: '#4F46E5', lineHeight: 16, fontWeight: '500' },
+  actionRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
   actionBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 14,
-    borderRadius: 12,
+    borderRadius: 14,
     gap: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  actionBtnText: {
-    color: 'white',
-    fontWeight: '600',
-    fontSize: 15,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 12,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  card: {
-    width: '48%',
-    backgroundColor: 'white',
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
   },
+  actionBtnText: { color: 'white', fontWeight: '800', fontSize: 14 },
+  searchBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    height: 48,
+    marginBottom: 20
+  },
+  searchInput: { flex: 1, fontSize: 13, fontWeight: '600', color: '#1F2937' },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12
+  },
+  sectionTitle: { fontSize: 16, fontWeight: '800' },
+  clearFilterText: { fontSize: 12, fontWeight: '700' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' },
+  card: {
+    width: '48%',
+    backgroundColor: 'white',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 16,
+    alignItems: 'center',
+    marginBottom: 12,
   },
   iconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     backgroundColor: '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
   },
   countBadge: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 10,
+    fontWeight: '700',
     color: '#64748B',
     backgroundColor: '#F1F5F9',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 10,
   },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
+  cardTitle: { fontSize: 14, fontWeight: '700' },
   docList: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: 'white',
-    padding: 16,
+    padding: 14,
     borderRadius: 16,
-    marginBottom: 10,
-    borderWidth: 1,
+    marginBottom: 8,
+    borderWidth: 1.5,
   },
-  docLeft: {
+  docLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  docTitle: { fontSize: 14, fontWeight: '700', marginBottom: 2 },
+  docSub: { fontSize: 11, fontWeight: '600' },
+  badgeContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  lockBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  docTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  docSub: {
-    fontSize: 12,
-  },
-  badgeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  badgeText: {
-    fontSize: 12,
-    color: '#10B981',
-    fontWeight: '600',
     backgroundColor: '#D1FAE5',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  badgeText: { fontSize: 9, color: '#10B981', fontWeight: '800' },
+  emptyContainer: { alignItems: 'center', justifyContent: 'center', padding: 40, gap: 10 },
+  emptyText: { fontSize: 13, color: '#9CA3AF', fontWeight: '600', textAlign: 'center' },
+  
+  // Modal styles
+  modalBg: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end'
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    height: '85%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 10
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    marginBottom: 14
+  },
+  modalHeaderTitleGrp: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 10 },
+  modalTitle: { fontSize: 16, fontWeight: '800', color: '#1F2937' },
+  closeBtn: {
+    padding: 6,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6'
+  },
+  modalMetaInfo: {
+    backgroundColor: '#F9FAFB',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 16,
+    gap: 4
+  },
+  modalMetaRow: { flexDirection: 'row', alignItems: 'center' },
+  modalMetaLabel: { fontSize: 11, fontWeight: '700', color: '#6B7280', width: 90 },
+  modalMetaVal: { fontSize: 12, fontWeight: '700', color: '#1F2937' },
+  imageContainer: {
+    width: '100%',
+    height: 240,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 16
+  },
+  decryptedPreview: {
+    width: '100%',
+    height: '100%',
+  },
+  unsupportedFormatBox: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12
+  },
+  unsupportedText: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 18,
+    fontWeight: '600'
+  },
+  decryptedNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 8,
+    marginBottom: 12
+  },
+  decryptedNoticeText: {
+    fontSize: 11,
+    color: '#10B981',
+    fontWeight: '800'
+  },
+  previewActionRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16
+  },
+  previewActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 14,
+  },
+  previewActionBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  
+  // Edit Form styles
+  editForm: {
+    width: '100%',
+    marginTop: 8
+  },
+  inputGroup: {
+    width: '100%',
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#4B5563',
+    marginBottom: 6
+  },
+  dropdownTrigger: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
     borderRadius: 12,
+    padding: 12,
+    backgroundColor: '#FAFCFA'
+  },
+  dropdownTriggerText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1F2937'
+  },
+  dropdownOptions: {
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    marginTop: 6,
+    maxHeight: 150,
+    overflow: 'scroll'
+  },
+  dropdownOption: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6'
+  },
+  dropdownOptionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151'
+  },
+  editActionRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16
+  },
+  modalActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 14,
+    borderRadius: 24,
+  },
+  modalActionBtnText: {
+    color: 'white',
+    fontWeight: '800',
+    fontSize: 14
   }
 });

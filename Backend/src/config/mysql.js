@@ -260,13 +260,28 @@ const createTables = async () => {
       documentType VARCHAR(255),
       documentNumber VARCHAR(255),
       extractedMetadata TEXT,
-      encryptedUrl TEXT,
+      encryptedUrl LONGTEXT,
+      format VARCHAR(50) DEFAULT 'Image',
       issueDate DATETIME,
       expiryDate DATETIME,
       createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     );
   `);
+
+  // Force modify existing column to LONGTEXT if table already exists
+  await pool.query(`
+    ALTER TABLE documents MODIFY COLUMN encryptedUrl LONGTEXT;
+  `);
+
+  // Try adding format column in case table already exists from previous runs
+  try {
+    await pool.query(`
+      ALTER TABLE documents ADD COLUMN format VARCHAR(50) DEFAULT 'Image';
+    `);
+  } catch (err) {
+    // Ignore error if column already exists
+  }
 
   console.log('[MySQL] Tables verified/created.');
 };

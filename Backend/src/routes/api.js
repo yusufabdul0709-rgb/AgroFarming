@@ -7,7 +7,7 @@ import { diagnoseCrop } from '../controllers/visionController.js';
 import { handleAIChat, handleAIVision } from '../controllers/aiController.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 
-import { uploadDocument, getDocuments, decryptDocument } from '../controllers/vaultController.js';
+import { uploadDocument, getDocuments, decryptDocument, updateDocument, deleteDocument } from '../controllers/vaultController.js';
 
 export const apiRouter = express.Router();
 
@@ -38,6 +38,8 @@ apiRouter.post('/schemes/create', createScheme);
 apiRouter.post('/vault/upload', authMiddleware, uploadDocument);
 apiRouter.get('/vault/documents', authMiddleware, getDocuments);
 apiRouter.get('/vault/document/:id/decrypt', authMiddleware, decryptDocument);
+apiRouter.put('/vault/document/:id', authMiddleware, updateDocument);
+apiRouter.delete('/vault/document/:id', authMiddleware, deleteDocument);
 
 // Computer Vision routes
 apiRouter.post('/vision/diagnose', diagnoseCrop);
