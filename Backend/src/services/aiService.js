@@ -170,8 +170,8 @@ export const diagnoseCropImage = async (imageName = 'paddy_leaf.jpg', base64Imag
   }
 
   try {
-    // Try to use gemini-2.5-flash as requested by user
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    // Try to use gemini-3.6-flash as requested by user
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
 
     let prompt = '';
     if (isMillet) {
@@ -241,7 +241,7 @@ export const diagnoseCropImage = async (imageName = 'paddy_leaf.jpg', base64Imag
     return parsedData;
   } catch (error) {
     console.error('[Vision Engine Error]', error);
-    // If gemini-2.5-flash fails (e.g., model not found), fallback gracefully to hardcoded responses
+    // If gemini-3.6-flash fails (e.g., model not found), fallback gracefully to hardcoded responses
     
     if (isMillet) {
       return {

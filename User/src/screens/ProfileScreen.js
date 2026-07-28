@@ -12,15 +12,29 @@ import {
   Platform
 } from 'react-native';
 import { ChevronRight, ShieldCheck, Save, X } from 'lucide-react-native';
+import MapboxAgriMap from '../components/MapboxAgriMap';
 import { THEME } from '../context/ThemeContext';
 import { useProfile } from '../context/ProfileContext';
+
+const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN;
 
 export default function ProfileScreen({ onBack, onLogout }) {
   const { farmerProfile, farmTwin, saveFarmerProfile, saveFarmTwin } = useProfile();
 
+  let gpsLocation = farmerProfile?.gpsLocation;
+  if (typeof gpsLocation === 'string') {
+    try {
+      gpsLocation = JSON.parse(gpsLocation);
+    } catch (e) {
+      console.warn('Failed to parse gpsLocation string', e);
+      gpsLocation = null;
+    }
+  }
+
   // Modals visibility
   const [showFarmModal, setShowFarmModal] = useState(false);
   const [showCropModal, setShowCropModal] = useState(false);
+  const [showFullScreenMap, setShowFullScreenMap] = useState(false);
 
   // Farm Details Form State
   const [farmName, setFarmName] = useState('');
@@ -139,6 +153,34 @@ export default function ProfileScreen({ onBack, onLogout }) {
           </View>
         </View>
 
+        {/* Map Preview Card */}
+        <View style={styles.mapCard}>
+          <Text style={styles.mapCardTitle}>📍 Registered Farm Location</Text>
+          <MapboxAgriMap
+            latitude={gpsLocation?.latitude || 17.6868}
+            longitude={gpsLocation?.longitude || 83.2185}
+            title="Registered Agriculture Farm"
+            locationName={
+              [farmerProfile.village, farmerProfile.district, farmerProfile.state]
+                .filter(Boolean)
+                .join(', ') || 'Visakhapatnam, Andhra Pradesh'
+            }
+            height={240}
+            onExpand={() => setShowFullScreenMap(true)}
+          />
+          <View style={styles.mapDetails}>
+            <Text style={styles.mapDetailsText}>
+              {farmerProfile.village ? `${farmerProfile.village}, ` : ''}
+              {farmerProfile.district ? `${farmerProfile.district}, ` : ''}
+              {farmerProfile.state || 'Andhra Pradesh'}
+            </Text>
+            <Text style={styles.mapCoords}>
+              {(gpsLocation?.latitude || 17.6868).toFixed(5)}° N, {(gpsLocation?.longitude || 83.2185).toFixed(5)}° E
+            </Text>
+          </View>
+        </View>
+
+
         {/* Menu list options */}
         <View style={styles.menuContainer}>
           {menuItems.map((item, i) => (
@@ -168,6 +210,29 @@ export default function ProfileScreen({ onBack, onLogout }) {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Modal - Full Screen Map */}
+      <Modal visible={showFullScreenMap} animationType="slide" transparent={false}>
+        <View style={{ flex: 1, backgroundColor: '#000' }}>
+          <MapboxAgriMap
+            latitude={gpsLocation?.latitude || 17.6868}
+            longitude={gpsLocation?.longitude || 83.2185}
+            title="Registered Agriculture Farm"
+            locationName={
+              [farmerProfile.village, farmerProfile.district, farmerProfile.state]
+                .filter(Boolean)
+                .join(', ') || 'Visakhapatnam, Andhra Pradesh'
+            }
+            height="100%"
+          />
+          <TouchableOpacity 
+            style={{ position: 'absolute', top: 50, right: 20, backgroundColor: 'rgba(0,0,0,0.5)', padding: 10, borderRadius: 24 }}
+            onPress={() => setShowFullScreenMap(false)}
+          >
+            <X size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </Modal>
 
       {/* Modal - My Farm Details */}
       <Modal visible={showFarmModal} animationType="slide" transparent={true}>
@@ -432,5 +497,52 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '800',
     fontSize: 15
+  },
+  mapCard: {
+    backgroundColor: 'white',
+    borderRadius: 28,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: THEME.glassBorder,
+    shadowColor: '#1b2e1b',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 2,
+    marginBottom: 20
+  },
+  mapCardTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: THEME.textDark,
+    marginBottom: 10
+  },
+  mapContainer: {
+    height: 150,
+    borderRadius: 18,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(44, 107, 67, 0.08)'
+  },
+  map: {
+    flex: 1
+  },
+  mapDetails: {
+    marginTop: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 4
+  },
+  mapDetailsText: {
+    fontSize: 12,
+    color: THEME.textDark,
+    fontWeight: '750',
+    flex: 1
+  },
+  mapCoords: {
+    fontSize: 10.5,
+    color: THEME.textMuted,
+    fontWeight: '600'
   }
 });

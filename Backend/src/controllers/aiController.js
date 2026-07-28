@@ -38,7 +38,7 @@ export const handleAIVision = async (req, res) => {
 
   try {
     let result = {};
-    // Real implementation would pass imageBase64 to Gemini 1.5 Flash Vision API.
+    // Real implementation would pass imageBase64 to Gemini 3.6 Flash Vision API.
     if (analysisType === 'millet') {
       result = {
         grainType: 'Pearl Millet (Bajra)',

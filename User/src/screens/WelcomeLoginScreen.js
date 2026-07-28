@@ -11,25 +11,25 @@ import {
   Image,
   ImageBackground
 } from 'react-native';
-import { Eye, EyeOff, Smartphone, Lock, ArrowRight } from 'lucide-react-native';
+import { Eye, EyeOff, Mail, Lock, ArrowRight } from 'lucide-react-native';
 import { THEME } from '../context/ThemeContext';
 import { useProfile } from '../context/ProfileContext';
 
 export default function WelcomeLoginScreen({ onLogin, onNavigateToSignUp }) {
   const { loginFarmer } = useProfile();
-  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [securePassword, setSecurePassword] = useState(true);
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!phone || !password) {
-      alert('Please enter both mobile number and password.');
+    if (!email || !password) {
+      alert('Please enter both email address and password.');
       return;
     }
     setLoading(true);
     try {
-      const res = await loginFarmer(phone, password);
+      const res = await loginFarmer(email, password);
       setLoading(false);
       if (res.success) {
         onLogin();
@@ -79,21 +79,18 @@ export default function WelcomeLoginScreen({ onLogin, onNavigateToSignUp }) {
 
           {/* Form Fields */}
           <View style={styles.formContainer}>
-            {/* Mobile Number or Email */}
+            {/* Email */}
             <View style={styles.inputWrapper}>
-              <Smartphone size={20} color={THEME.textMuted} style={styles.inputIcon} />
+              <Mail size={20} color={THEME.textMuted} style={styles.inputIcon} />
               <TextInput 
                 style={styles.textInput} 
-                placeholder="Mobile Number or Email" 
+                placeholder="Email Address" 
                 placeholderTextColor={THEME.textMuted}
                 keyboardType="email-address"
                 autoCapitalize="none"
-                value={phone}
-                onChangeText={setPhone}
+                value={email}
+                onChangeText={setEmail}
               />
-              <TouchableOpacity style={styles.otpBtn}>
-                <Text style={styles.otpBtnText}>Send OTP</Text>
-              </TouchableOpacity>
             </View>
 
             {/* Password */}

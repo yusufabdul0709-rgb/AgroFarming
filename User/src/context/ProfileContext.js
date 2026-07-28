@@ -110,13 +110,33 @@ export const ProfileProvider = ({ children }) => {
     }
   };
 
+<<<<<<< HEAD
   const registerFarmer = async (phone, password, name) => {
+=======
+  const registerFarmer = async (phone, password, name, emailInput, locationData = {}) => {
+>>>>>>> 913d4a08a4505b68cefc5f0faab1c47713518e8d
     try {
       const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.42:5000/api';
       const res = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
+<<<<<<< HEAD
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, password, name, isRegistering: true })
+=======
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ 
+          phone, 
+          name, 
+          preferredLanguage: 'English',
+          gpsLocation: locationData.gpsLocation,
+          village: locationData.village,
+          district: locationData.district,
+          state: locationData.state
+        })
+>>>>>>> 913d4a08a4505b68cefc5f0faab1c47713518e8d
       });
       
       const resData = await res.json();

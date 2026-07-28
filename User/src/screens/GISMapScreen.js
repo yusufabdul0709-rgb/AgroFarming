@@ -7,11 +7,13 @@ import FieldDetailsScreen from './FieldDetailsScreen';
 import * as Location from 'expo-location';
 
 // Use Mapbox token from environment
-const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN;
+import MapboxAgriMap from '../components/MapboxAgriMap';
+
+const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN || process.env.VITE_MAPBOX_TOKEN || process.env.MAPBOX_TOKEN || '';
 
 export default function GISMapScreen({ userCoords, onBack }) {
   const [showDetails, setShowDetails] = useState(false);
-  const [currentCoords, setCurrentCoords] = useState(userCoords || { latitude: 17.6868, longitude: 83.3088 });
+  const [currentCoords, setCurrentCoords] = useState(userCoords || { latitude: 17.6868, longitude: 83.2185 });
 
   React.useEffect(() => {
     if (!userCoords) {
@@ -33,30 +35,15 @@ export default function GISMapScreen({ userCoords, onBack }) {
     return <FieldDetailsScreen onBack={() => setShowDetails(false)} />;
   }
 
-  const initialRegion = {
-    latitude: currentCoords.latitude,
-    longitude: currentCoords.longitude,
-    latitudeDelta: 0.015,
-    longitudeDelta: 0.015,
-  };
-
   return (
     <View style={styles.container}>
-      <MapView 
-        style={styles.mapBackground}
-        region={initialRegion}
-        mapType="none" // Disable default maps to use custom Mapbox satellite-v9 tiles
-      >
-        <UrlTile
-          urlTemplate={`https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}@2x.jpg?access_token=${MAPBOX_TOKEN}`}
-          maximumZ={19}
-        />
-        <Marker 
-          coordinate={{ latitude: currentCoords.latitude, longitude: currentCoords.longitude }}
-          title="My Live GPS Farm Location"
-          description={`${currentCoords.latitude.toFixed(4)}° N, ${currentCoords.longitude.toFixed(4)}° E`}
-        />
-      </MapView>
+      <MapboxAgriMap
+        latitude={currentCoords.latitude}
+        longitude={currentCoords.longitude}
+        title="Live GPS Farm Field"
+        height="100%"
+      />
+
 
       <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
         <View style={styles.header}>
