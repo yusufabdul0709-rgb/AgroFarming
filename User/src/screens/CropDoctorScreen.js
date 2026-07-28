@@ -42,9 +42,11 @@ export default function CropDoctorScreen({ onBack }) {
       }
 
       const options = {
-        mediaTypes: 'images',
+        mediaTypes: ['images'],
         aspect: [4, 3],
-        base64: true
+        base64: true,
+        quality: 0.5,
+        exif: false,
       };
 
       let result;
@@ -56,19 +58,43 @@ export default function CropDoctorScreen({ onBack }) {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
+        let base64Data = asset.base64;
+
+        // Fallback: read the URI as base64 via XHR if SDK didn't return base64
+        if (!base64Data && asset.uri) {
+          base64Data = await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.onload = () => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result.split(',')[1]);
+              reader.onerror = reject;
+              reader.readAsDataURL(xhr.response);
+            };
+            xhr.onerror = reject;
+            xhr.open('GET', asset.uri);
+            xhr.responseType = 'blob';
+            xhr.send();
+          });
+        }
+
+        if (!base64Data) {
+          alert('Could not read the selected image. Please try again or use the camera.');
+          return;
+        }
+
         setSelectedImgUri(asset.uri);
-        runDiagnostics(asset.fileName || 'image.jpg', asset.base64);
+        runDiagnostics(asset.fileName || 'image.jpg', base64Data);
       }
     } catch (e) {
       console.error('Image picking failed', e);
-      alert('Failed to access media device.');
+      alert('Failed to access media device: ' + (e.message || 'Unknown error'));
     }
   };
 
   const runDiagnostics = async (imageName, base64) => {
     setAnalyzing(true);
     try {
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.39:5000/api';
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.134:5000/api';
       const headers = { 'Content-Type': 'application/json' };
       if (authToken) {
         headers['Authorization'] = `Bearer ${authToken}`;
