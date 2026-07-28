@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -6,7 +6,8 @@ import {
   ScrollView, 
   TouchableOpacity, 
   Image, 
-  Dimensions 
+  Dimensions,
+  Modal 
 } from 'react-native';
 import { 
   Bell, 
@@ -22,10 +23,13 @@ import {
   CloudSun, 
   Droplet, 
   Activity, 
-  Coins 
+  Coins,
+  X,
+  FileUp 
 } from 'lucide-react-native';
 import { THEME } from '../context/ThemeContext';
 import { useProfile } from '../context/ProfileContext';
+import MapboxAgriMap from '../components/MapboxAgriMap';
 import GlassCard from '../components/GlassCard';
 
 
@@ -33,6 +37,21 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function HomeDashboardScreen({ onNavigateTo }) {
   const { farmerProfile } = useProfile();
+  const [showFullScreenMap, setShowFullScreenMap] = useState(false);
+
+  // Parse gpsLocation safely
+  let gpsLocation = farmerProfile?.gpsLocation;
+  if (typeof gpsLocation === 'string') {
+    try {
+      gpsLocation = JSON.parse(gpsLocation);
+    } catch (e) {
+      gpsLocation = null;
+    }
+  }
+
+  const locationName = [farmerProfile?.village, farmerProfile?.district, farmerProfile?.state]
+    .filter(Boolean)
+    .join(', ') || 'Visakhapatnam, Andhra Pradesh';
 
   const overviewStats = [
     { key: 'weather', title: 'Weather', val: '28°C', sub: 'Partly Cloudy', icon: <CloudSun size={20} color="#EAA013" />, bg: '#FFF9EB' },
@@ -82,8 +101,12 @@ export default function HomeDashboardScreen({ onNavigateTo }) {
         {/* 2. Location Banner */}
         <View style={styles.locationContainer}>
           <MapPin size={14} color={THEME.primary} />
-          <Text style={styles.locationText}>Rajapur, Warangal</Text>
-          <Text style={styles.locationSubText}>• Telangana, India</Text>
+          <Text style={styles.locationText}>
+            {farmerProfile?.village || farmerProfile?.district || 'Your Location'}
+          </Text>
+          <Text style={styles.locationSubText}>
+            • {farmerProfile?.state || 'India'}
+          </Text>
         </View>
 
         {/* 3. Farmer Banner greeting card */}
@@ -141,17 +164,32 @@ export default function HomeDashboardScreen({ onNavigateTo }) {
           ))}
         </ScrollView>
 
-        {/* Mapbox: Set Land Location */}
+        {/* Mapbox: Farm Location */}
         <View style={styles.sectionHeaderGrid}>
           <Text style={styles.sectionTitle}>Farm Location</Text>
         </View>
-        <View style={styles.mapContainer}>
-
+        <View style={styles.mapCard}>
+          <MapboxAgriMap
+            latitude={gpsLocation?.latitude || 17.6868}
+            longitude={gpsLocation?.longitude || 83.2185}
+            title="My Farm Location"
+            locationName={locationName}
+            height={200}
+            onExpand={() => setShowFullScreenMap(true)}
+          />
+          <View style={styles.mapDetailsRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.mapDetailsText}>{locationName}</Text>
+              <Text style={styles.mapCoords}>
+                {(gpsLocation?.latitude || 17.6868).toFixed(5)}° N, {(gpsLocation?.longitude || 83.2185).toFixed(5)}° E
+              </Text>
+            </View>
+          </View>
           <TouchableOpacity 
             style={styles.setLocationBtn}
-            onPress={() => alert('Opening full map to set location...')}
+            onPress={() => onNavigateTo('land-doc-upload')}
           >
-            <MapPin size={18} color="white" />
+            <FileUp size={16} color="white" />
             <Text style={styles.setLocationBtnText}>Set Land Location</Text>
           </TouchableOpacity>
         </View>
@@ -174,6 +212,25 @@ export default function HomeDashboardScreen({ onNavigateTo }) {
           ))}
         </View>
       </ScrollView>
+
+      {/* Full Screen Map Modal */}
+      <Modal visible={showFullScreenMap} animationType="slide" transparent={false}>
+        <View style={{ flex: 1, backgroundColor: '#000' }}>
+          <MapboxAgriMap
+            latitude={gpsLocation?.latitude || 17.6868}
+            longitude={gpsLocation?.longitude || 83.2185}
+            title="My Farm Location"
+            locationName={locationName}
+            height="100%"
+          />
+          <TouchableOpacity 
+            style={styles.closeMapBtn}
+            onPress={() => setShowFullScreenMap(false)}
+          >
+            <X size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -391,25 +448,40 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginBottom: 14
   },
-  mapContainer: {
-    height: 180,
+  mapCard: {
     borderRadius: 24,
     overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: '#EAEAEA',
+    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: 'rgba(44, 107, 67, 0.08)'
+    borderColor: 'rgba(44, 107, 67, 0.08)',
+    marginBottom: 4
   },
-  map: {
-    flex: 1
+  mapDetailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 4
+  },
+  mapDetailsText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: THEME.textDark
+  },
+  mapCoords: {
+    fontSize: 11,
+    color: THEME.textMuted,
+    marginTop: 2,
+    fontWeight: '600'
   },
   setLocationBtn: {
-    position: 'absolute',
-    bottom: 16,
-    alignSelf: 'center',
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 14,
     backgroundColor: THEME.primary,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 30,
@@ -424,6 +496,14 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '700',
     fontSize: 14
+  },
+  closeMapBtn: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: 10,
+    borderRadius: 24
   },
   gridContainer: {
     flexDirection: 'row',

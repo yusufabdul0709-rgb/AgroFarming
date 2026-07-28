@@ -124,7 +124,7 @@ export const ProfileProvider = ({ children }) => {
     }
   };
 
-  const registerFarmer = async (phone, password, name, emailInput) => {
+  const registerFarmer = async (phone, password, name, emailInput, locationData = {}) => {
     try {
       const email = emailInput && emailInput.includes('@') ? emailInput : `${phone}@gmail.com`;
       const { data, error } = await supabase.auth.signUp({ email, password });
@@ -153,7 +153,15 @@ export const ProfileProvider = ({ children }) => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ phone, name, preferredLanguage: 'English' })
+        body: JSON.stringify({ 
+          phone, 
+          name, 
+          preferredLanguage: 'English',
+          gpsLocation: locationData.gpsLocation,
+          village: locationData.village,
+          district: locationData.district,
+          state: locationData.state
+        })
       });
       
       const resData = await res.json();

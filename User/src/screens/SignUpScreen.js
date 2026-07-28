@@ -14,6 +14,90 @@ import {
 import { User, Smartphone, Mail, Lock, Check, ArrowRight } from 'lucide-react-native';
 import { THEME } from '../context/ThemeContext';
 import { useProfile } from '../context/ProfileContext';
+import * as Location from 'expo-location';
+
+const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN || process.env.VITE_MAPBOX_TOKEN || process.env.MAPBOX_TOKEN || '';
+
+const reverseGeocodeMapbox = async (latitude, longitude, token) => {
+  try {
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?access_token=${token}`;
+    console.log('[Mapbox Geocode] Request URL:', url);
+    const response = await fetch(url);
+    const data = await response.json();
+    console.log('[Mapbox Geocode] Response features count:', data?.features?.length || 0);
+
+    if (data && data.features && data.features.length > 0) {
+      let village = '';
+      let district = '';
+      let state = '';
+
+      // Look through features array for matching types
+      const neighborhoodFeature = data.features.find(f => f.place_type.includes('neighborhood') || f.place_type.includes('locality'));
+      const addressFeature = data.features.find(f => f.place_type.includes('address') || f.place_type.includes('poi'));
+      const districtFeature = data.features.find(f => f.place_type.includes('place') || f.place_type.includes('district'));
+      const stateFeature = data.features.find(f => f.place_type.includes('region'));
+
+      if (neighborhoodFeature) {
+        village = neighborhoodFeature.text;
+      } else if (addressFeature) {
+        village = addressFeature.text;
+      }
+
+      if (districtFeature) {
+        district = districtFeature.text;
+      }
+
+      if (stateFeature) {
+        state = stateFeature.text;
+      }
+
+      // Context fallbacks from the first feature
+      const context = data.features[0].context || [];
+      
+      if (!village) {
+        const localityContext = context.find(c => c.id.startsWith('locality') || c.id.startsWith('neighborhood'));
+        if (localityContext) {
+          village = localityContext.text;
+        } else {
+          village = data.features[0].text; // Default to top feature name
+        }
+      }
+
+      if (!district) {
+        const districtContext = context.find(c => c.id.startsWith('district') || c.id.startsWith('place'));
+        if (districtContext) {
+          district = districtContext.text;
+        } else if (data.features[0].place_type.includes('place')) {
+          district = data.features[0].text;
+        }
+      }
+
+      if (!state) {
+        const stateContext = context.find(c => c.id.startsWith('region'));
+        if (stateContext) {
+          state = stateContext.text;
+        } else if (data.features[0].place_type.includes('region')) {
+          state = data.features[0].text;
+        }
+      }
+
+      console.log('[Mapbox Geocode] Parsed results:', { village, district, state });
+
+      return {
+        village: village || 'Kalyanpur',
+        district: district || 'Kanpur',
+        state: state || 'Uttar Pradesh'
+      };
+    }
+  } catch (err) {
+    console.warn('[Mapbox Geocode Error]', err);
+  }
+  return {
+    village: 'Kalyanpur',
+    district: 'Kanpur',
+    state: 'Uttar Pradesh'
+  };
+};
 
 export default function SignUpScreen({ onSignUp, onNavigateToLogin }) {
   const { registerFarmer } = useProfile();
@@ -43,8 +127,60 @@ export default function SignUpScreen({ onSignUp, onNavigateToLogin }) {
     }
     
     setLoading(true);
+
+    let gpsLocation = { latitude: 17.6868, longitude: 83.2185 }; // Default Visakhapatnam farm region fallback
+    let village = 'Anakapalle';
+    let district = 'Visakhapatnam';
+    let state = 'Andhra Pradesh';
+
     try {
-      const res = await registerFarmer(phone, password, name, email);
+      console.log('[Signup Location] Requesting location permission...');
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      console.log('[Signup Location] Permission status:', status);
+      if (status === 'granted') {
+        let loc = null;
+        try {
+          console.log('[Signup Location] Fetching current position (Balanced accuracy, 6s timeout)...');
+          loc = await Location.getCurrentPositionAsync({ 
+            accuracy: Location.Accuracy.Balanced,
+            timeout: 6000 
+          });
+        } catch (timeoutErr) {
+          console.warn('[Signup Location] getCurrentPositionAsync failed or timed out, trying getLastKnownPositionAsync...', timeoutErr);
+          loc = await Location.getLastKnownPositionAsync({});
+        }
+
+        if (loc && loc.coords) {
+          gpsLocation = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+          console.log('[Signup Location] Successfully captured coordinates:', gpsLocation);
+          
+          if (MAPBOX_TOKEN) {
+            console.log('[Signup Location] Initiating Mapbox reverse geocoding...');
+            const address = await reverseGeocodeMapbox(gpsLocation.latitude, gpsLocation.longitude, MAPBOX_TOKEN);
+            village = address.village;
+            district = address.district;
+            state = address.state;
+            console.log('[Signup Location] Mapbox geocoding resolved address:', { village, district, state });
+          } else {
+            console.warn('[Signup Location] MAPBOX_TOKEN is not defined in environment!');
+          }
+        } else {
+          console.warn('[Signup Location] Could not capture any coordinates (loc is null). Using defaults.');
+        }
+      } else {
+        console.warn('[Signup Location] Location permission denied, using default coordinates');
+      }
+    } catch (e) {
+      console.warn('[Signup Location] Error during location resolution:', e);
+    }
+
+    try {
+      const res = await registerFarmer(phone, password, name, email, {
+        gpsLocation,
+        village,
+        district,
+        state
+      });
       setLoading(false);
       if (res.success) {
         onSignUp();

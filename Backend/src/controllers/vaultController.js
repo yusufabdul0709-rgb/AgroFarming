@@ -23,7 +23,7 @@ export const uploadDocument = async (req, res) => {
     
     if (process.env.GEMINI_API_KEY) {
       try {
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
         const prompt = `You are an AI Document Intelligence system. Extract details from this ${documentType}. 
         Return ONLY a JSON object with these keys (where applicable): "name", "dob", "documentNumber", "issueDate", "expiryDate", "address".
         If you cannot read it clearly, return empty strings for values.`;

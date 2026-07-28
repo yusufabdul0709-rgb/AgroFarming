@@ -103,6 +103,8 @@ export default function AppNavigator() {
         return <DocumentUploadScreen onBack={() => setCurrentDetailView('secure-vault')} />;
       case 'vault-scheme-match':
         return <VaultSchemeMatchingScreen onBack={() => setCurrentDetailView('secure-vault')} />;
+      case 'land-doc-upload':
+        return <DocumentUploadScreen onBack={() => setCurrentDetailView(null)} />;
       default:
         return null;
     }

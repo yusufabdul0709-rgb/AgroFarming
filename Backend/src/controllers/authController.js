@@ -158,7 +158,7 @@ export const getAllFarmers = async (req, res) => {
 
 export const syncProfile = async (req, res) => {
   const supabaseId = req.user.id;
-  const { name, phone, preferredLanguage } = req.body;
+  const { name, phone, preferredLanguage, gpsLocation, village, district, state } = req.body;
 
   try {
     let user = await User.findById(supabaseId);
@@ -171,10 +171,10 @@ export const syncProfile = async (req, res) => {
         phone: phone || '',
         password: 'supabase_managed_auth', // dummy password since auth is handled by Supabase
         preferredLanguage: preferredLanguage || 'English',
-        village: 'Kalyanpur',
-        district: 'Kanpur',
-        state: 'Uttar Pradesh',
-        gpsLocation: { latitude: 26.4499, longitude: 80.3319 },
+        village: village || 'Kalyanpur',
+        district: district || 'Kanpur',
+        state: state || 'Uttar Pradesh',
+        gpsLocation: gpsLocation || { latitude: 26.4499, longitude: 80.3319 },
         landArea: 2.5,
         landOwnership: 'Owned',
         soilType: 'Loamy',
@@ -195,6 +195,23 @@ export const syncProfile = async (req, res) => {
       });
 
       console.log(`[Auth] Registered new farmer from Supabase: ${user.name} (${user.phone})`);
+    } else {
+      // Update existing user with new location if provided
+      let updatePayload = {};
+      let isUpdated = false;
+      if (gpsLocation && (user.gpsLocation?.latitude !== gpsLocation.latitude || user.gpsLocation?.longitude !== gpsLocation.longitude)) {
+        updatePayload.gpsLocation = gpsLocation;
+        user.gpsLocation = gpsLocation;
+        isUpdated = true;
+      }
+      if (village && user.village !== village) { updatePayload.village = village; user.village = village; isUpdated = true; }
+      if (district && user.district !== district) { updatePayload.district = district; user.district = district; isUpdated = true; }
+      if (state && user.state !== state) { updatePayload.state = state; user.state = state; isUpdated = true; }
+      
+      if (isUpdated) {
+        await User.findByIdAndUpdate(supabaseId, updatePayload);
+        console.log(`[Auth] Updated location for existing farmer: ${user.name}`);
+      }
     }
 
     return res.json({

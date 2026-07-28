@@ -32,7 +32,7 @@ export const scrapeAndAnalyzeSchemes = async (url) => {
       ];
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
     const prompt = `You are a Government Agricultural Scheme Data Extractor. 
     Analyze the following website text and extract all agricultural schemes mentioned.
     Return a JSON array of objects. Each object MUST have these keys:
