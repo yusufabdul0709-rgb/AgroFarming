@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase } from '../config/supabaseClient.js';
 
 const ProfileContext = createContext(null);
 
@@ -30,10 +29,9 @@ export const ProfileProvider = ({ children }) => {
   const [authToken, setAuthToken] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Helper to fetch farm twin details
   const fetchFarmTwin = async (userId, token) => {
     try {
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.134:5000/api';
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.42:5000/api';
       const res = await fetch(`${API_URL}/farm/twin/${userId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -54,7 +52,6 @@ export const ProfileProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    // Load profile and token from AsyncStorage on mount
     const loadProfile = async () => {
       try {
         const storedProfile = await AsyncStorage.getItem('@farmer_profile');
@@ -82,37 +79,26 @@ export const ProfileProvider = ({ children }) => {
     loadProfile();
   }, []);
 
-  const loginFarmer = async (phoneOrEmail, password) => {
+  const loginFarmer = async (phone, password) => {
     try {
-      const email = phoneOrEmail.includes('@') ? phoneOrEmail : `${phoneOrEmail}@gmail.com`;
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      
-      if (error) {
-        return { success: false, message: error.message };
-      }
-
-      const token = data.session.access_token;
-      setAuthToken(token);
-      await AsyncStorage.setItem('@farmer_token', token);
-
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.39:5000/api';
-      const res = await fetch(`${API_URL}/auth/sync`, {
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.42:5000/api';
+      const res = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ 
-          phone: phoneOrEmail.includes('@') ? '' : phoneOrEmail,
-          email: phoneOrEmail.includes('@') ? phoneOrEmail : ''
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, password, isRegistering: false })
       });
       
       const resData = await res.json();
       if (resData.status === 'success') {
+        const token = resData.token;
         const profile = resData.user;
+        
+        setAuthToken(token);
         setFarmerProfileState(profile);
+        
+        await AsyncStorage.setItem('@farmer_token', token);
         await AsyncStorage.setItem('@farmer_profile', JSON.stringify(profile));
+        
         await fetchFarmTwin(profile._id, token);
         return { success: true };
       } else {
@@ -124,43 +110,26 @@ export const ProfileProvider = ({ children }) => {
     }
   };
 
-  const registerFarmer = async (phone, password, name, emailInput) => {
+  const registerFarmer = async (phone, password, name) => {
     try {
-      const email = emailInput && emailInput.includes('@') ? emailInput : `${phone}@gmail.com`;
-      const { data, error } = await supabase.auth.signUp({ email, password });
-      
-      if (error) {
-        return { success: false, message: error.message };
-      }
-
-      let token = data.session?.access_token;
-
-      if (!token) {
-        const signInRes = await supabase.auth.signInWithPassword({ email, password });
-        if (signInRes.error) {
-          return { success: false, message: signInRes.error.message };
-        }
-        token = signInRes.data.session.access_token;
-      }
-
-      setAuthToken(token);
-      await AsyncStorage.setItem('@farmer_token', token);
-
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.134:5000/api';
-      const res = await fetch(`${API_URL}/auth/sync`, {
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.42:5000/api';
+      const res = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ phone, name, preferredLanguage: 'English' })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, password, name, isRegistering: true })
       });
       
       const resData = await res.json();
       if (resData.status === 'success') {
+        const token = resData.token;
         const profile = resData.user;
+        
+        setAuthToken(token);
         setFarmerProfileState(profile);
+        
+        await AsyncStorage.setItem('@farmer_token', token);
         await AsyncStorage.setItem('@farmer_profile', JSON.stringify(profile));
+        
         await fetchFarmTwin(profile._id, token);
         return { success: true };
       } else {
@@ -180,7 +149,7 @@ export const ProfileProvider = ({ children }) => {
 
       if (updatedProfile._id) {
         const token = authToken || await AsyncStorage.getItem('@farmer_token');
-        const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.39:5000/api';
+        const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.42:5000/api';
         
         const headers = { 'Content-Type': 'application/json' };
         if (token) {
@@ -192,8 +161,8 @@ export const ProfileProvider = ({ children }) => {
           headers,
           body: JSON.stringify(newProfile)
         }).then(res => res.json())
-          .then(data => console.log('[MySQL Sync] Profile updated:', data.status))
-          .catch(err => console.warn('[MySQL Sync] Offline fallback:', err.message));
+          .then(data => console.log('[DB Sync] Profile updated:', data.status))
+          .catch(err => console.warn('[DB Sync] Offline fallback:', err.message));
       }
     } catch (e) {
       console.error('Failed to save profile to AsyncStorage', e);
@@ -209,7 +178,7 @@ export const ProfileProvider = ({ children }) => {
       const profile = farmerProfile;
       if (profile && profile._id) {
         const token = authToken || await AsyncStorage.getItem('@farmer_token');
-        const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.39:5000/api';
+        const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.42:5000/api';
         
         const headers = { 'Content-Type': 'application/json' };
         if (token) {
@@ -221,8 +190,8 @@ export const ProfileProvider = ({ children }) => {
           headers,
           body: JSON.stringify(updatedTwin)
         }).then(res => res.json())
-          .then(data => console.log('[MySQL Sync] Farm Twin updated:', data.status))
-          .catch(err => console.warn('[MySQL Sync] Farm Twin offline fallback:', err.message));
+          .then(data => console.log('[DB Sync] Farm Twin updated:', data.status))
+          .catch(err => console.warn('[DB Sync] Farm Twin offline fallback:', err.message));
       }
     } catch (e) {
       console.error('Failed to save farm twin to AsyncStorage', e);
@@ -231,7 +200,6 @@ export const ProfileProvider = ({ children }) => {
 
   const logoutFarmer = async () => {
     try {
-      await supabase.auth.signOut();
       setFarmerProfileState(DEFAULT_PROFILE);
       setFarmTwin(null);
       setAuthToken(null);

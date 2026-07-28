@@ -1,5 +1,5 @@
 import { Scheme } from '../models/Scheme.js';
-import { pool } from '../config/mysql.js';
+import { Document } from '../models/Document.js';
 
 export const matchSchemeVault = async (req, res) => {
   const userId = req.user?._id || req.body.userId;
@@ -10,12 +10,11 @@ export const matchSchemeVault = async (req, res) => {
 
   try {
     let userStoredDocTypes = [];
-    if (pool) {
-      // 1. Fetch user documents
-      const [docs] = await pool.query('SELECT documentType, issueDate, expiryDate FROM documents WHERE user = ?', [userId]);
+    try {
+      const docs = await Document.find({ user: userId });
       userStoredDocTypes = docs.map(d => d.documentType.toLowerCase());
-    } else {
-      console.warn('[Schemes] Database offline. Proceeding with empty user document list.');
+    } catch (dbErr) {
+      console.warn('[Schemes] Could not fetch user documents.', dbErr.message);
     }
 
     // 2. Fetch active schemes

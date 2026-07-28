@@ -1,4 +1,4 @@
-import { pool } from '../config/mysql.js';
+import { Document } from '../models/Document.js';
 import { encryptText, decryptText } from '../services/encryptionService.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
@@ -7,15 +7,13 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 export const uploadDocument = async (req, res) => {
   const userId = req.user?.id || req.user?._id || req.body.userId;
-  const { category, documentType, fileDataUrl } = req.body; // fileDataUrl is base64
+  const { category, documentType, fileDataUrl } = req.body;
 
   if (!userId || !fileDataUrl || !documentType) {
     return res.status(400).json({ status: 'error', message: 'Missing required fields' });
   }
 
   try {
-    // 1. Send to Gemini for OCR & Intelligence
-    // Strip the "data:image/jpeg;base64," part
     const base64String = fileDataUrl.replace(/^data:image\/\w+;base64,/, "");
     
     let extractedMetadata = {};
@@ -51,7 +49,6 @@ export const uploadDocument = async (req, res) => {
         }
       } catch (geminiError) {
         console.error("Gemini AI OCR failed, falling back to mock extraction:", geminiError.message);
-        // Provide mock fallback values based on the screenshot details
         extractedMetadata = { 
           name: 'Bevara Bhargav', 
           dob: '10/03/2010', 
@@ -66,41 +63,27 @@ export const uploadDocument = async (req, res) => {
       documentNumber = 'DOC-12345';
     }
 
-    // 2. If database pool is not available (MOCK DB MODE), return success with metadata only
-    if (!pool) {
-      console.warn('[Vault] Database pool not available. Returning mock success response.');
-      const docId = `doc_${Date.now()}`;
-      return res.json({
-        status: 'success',
-        message: 'Document processed (database offline — not persisted).',
-        documentId: docId,
-        metadata: extractedMetadata
-      });
-    }
-
-    // 3. Encrypt the file data
-    const encryptedUrl = encryptText(fileDataUrl); // In a real app, upload to S3/Supabase Storage, then encrypt the URL. Here we encrypt base64 for simplicity in MVP.
-
-    // 4. Save to database
-    const docId = `doc_${Date.now()}`;
+    const encryptedUrl = encryptText(fileDataUrl);
     const issueDate = extractedMetadata.issueDate ? new Date(extractedMetadata.issueDate) : null;
     const expiryDate = extractedMetadata.expiryDate ? new Date(extractedMetadata.expiryDate) : null;
     const format = req.body.format || 'Image';
 
-    const query = `
-      INSERT INTO documents 
-      (_id, user, category, documentType, documentNumber, extractedMetadata, encryptedUrl, issueDate, expiryDate, format) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-    
-    await pool.query(query, [
-      docId, userId, category || 'Personal', documentType, documentNumber, JSON.stringify(extractedMetadata), encryptedUrl, issueDate, expiryDate, format
-    ]);
+    const newDoc = await Document.create({
+      user: userId,
+      category: category || 'Personal',
+      documentType,
+      documentNumber,
+      extractedMetadata,
+      encryptedUrl,
+      issueDate,
+      expiryDate,
+      format
+    });
 
     res.json({
       status: 'success',
       message: 'Document uploaded and encrypted securely.',
-      documentId: docId,
+      documentId: newDoc._id,
       metadata: extractedMetadata
     });
 
@@ -117,18 +100,10 @@ export const getDocuments = async (req, res) => {
     return res.status(400).json({ status: 'error', message: 'Missing user ID' });
   }
 
-  if (!pool) {
-    return res.json({ status: 'success', documents: [], message: 'Database offline' });
-  }
-
   try {
-    const [rows] = await pool.query('SELECT _id, category, documentType, documentNumber, extractedMetadata, format, issueDate, expiryDate, createdAt FROM documents WHERE user = ? ORDER BY createdAt DESC', [userId]);
-    
-    // Parse JSON metadata
-    const documents = rows.map(row => ({
-      ...row,
-      extractedMetadata: row.extractedMetadata ? JSON.parse(row.extractedMetadata) : {}
-    }));
+    const documents = await Document.find({ user: userId })
+      .select('-encryptedUrl')
+      .sort({ createdAt: -1 });
 
     res.json({ status: 'success', documents });
   } catch (error) {
@@ -141,19 +116,14 @@ export const decryptDocument = async (req, res) => {
   const { id } = req.params;
   const userId = req.user?.id || req.user?._id || req.query.userId;
 
-  if (!pool) {
-    return res.status(503).json({ status: 'error', message: 'Database offline. Cannot decrypt documents.' });
-  }
-
   try {
-    const [rows] = await pool.query('SELECT encryptedUrl FROM documents WHERE _id = ? AND user = ?', [id, userId]);
+    const doc = await Document.findOne({ _id: id, user: userId });
     
-    if (rows.length === 0) {
+    if (!doc) {
       return res.status(404).json({ status: 'error', message: 'Document not found or access denied' });
     }
 
-    const encryptedData = rows[0].encryptedUrl;
-    const decryptedData = decryptText(encryptedData);
+    const decryptedData = decryptText(doc.encryptedUrl);
 
     res.json({ status: 'success', fileDataUrl: decryptedData });
   } catch (error) {
@@ -171,15 +141,21 @@ export const updateDocument = async (req, res) => {
     return res.status(401).json({ status: 'error', message: 'Unauthorized' });
   }
 
-  if (!pool) {
-    return res.json({ status: 'success', message: 'Document updated (database offline — not persisted).' });
-  }
-
   try {
-    await pool.query(
-      'UPDATE documents SET category = ?, documentType = ?, format = ? WHERE _id = ? AND user = ?',
-      [category || 'Personal', documentType || 'Aadhaar Card', format || 'Image', id, userId]
+    const updatedDoc = await Document.findOneAndUpdate(
+      { _id: id, user: userId },
+      { 
+        category: category || 'Personal', 
+        documentType: documentType || 'Aadhaar Card', 
+        format: format || 'Image' 
+      },
+      { new: true }
     );
+
+    if (!updatedDoc) {
+      return res.status(404).json({ status: 'error', message: 'Document not found' });
+    }
+
     res.json({ status: 'success', message: 'Document updated successfully' });
   } catch (error) {
     console.error('[Vault Update Error]', error);
@@ -195,17 +171,10 @@ export const deleteDocument = async (req, res) => {
     return res.status(401).json({ status: 'error', message: 'Unauthorized' });
   }
 
-  if (!pool) {
-    return res.json({ status: 'success', message: 'Document deleted (database offline).' });
-  }
-
   try {
-    const [result] = await pool.query(
-      'DELETE FROM documents WHERE _id = ? AND user = ?',
-      [id, userId]
-    );
+    const deletedDoc = await Document.findOneAndDelete({ _id: id, user: userId });
     
-    if (result.affectedRows === 0) {
+    if (!deletedDoc) {
       return res.status(404).json({ status: 'error', message: 'Document not found or access denied' });
     }
     

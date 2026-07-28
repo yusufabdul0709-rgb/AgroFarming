@@ -39,7 +39,7 @@ export default function AIChatScreen({ onBack }) {
     setLoading(true);
 
     try {
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.134:5000/api';
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.42:5000/api';
       const res = await fetch(`${API_URL}/ai/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

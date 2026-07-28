@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { ArrowLeft, FlaskConical, Sprout, CheckCircle2 } from 'lucide-react-native';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.134:5000/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.42:5000/api';
 
 export default function SoilAnalyzerScreen({ onBack }) {
   const [loading, setLoading] = useState(true);
