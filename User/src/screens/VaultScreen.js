@@ -86,7 +86,7 @@ export default function VaultScreen({ onBack, onNavigate }) {
     if (showLoadingIndicator) setLoading(true);
     try {
       const token = await AsyncStorage.getItem('@farmer_token');
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.76.22.64:5000/api';
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.134:5000/api';
       
       const res = await fetch(`${API_URL}/vault/documents`, {
         headers: {
@@ -119,7 +119,7 @@ export default function VaultScreen({ onBack, onNavigate }) {
     setDecryptingDocId(doc._id);
     try {
       const token = await AsyncStorage.getItem('@farmer_token');
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.76.22.64:5000/api';
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.134:5000/api';
       
       const res = await fetch(`${API_URL}/vault/document/${doc._id}/decrypt`, {
         headers: {
@@ -151,7 +151,7 @@ export default function VaultScreen({ onBack, onNavigate }) {
     setUpdating(true);
     try {
       const token = await AsyncStorage.getItem('@farmer_token');
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.76.22.64:5000/api';
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.134:5000/api';
       
       const res = await fetch(`${API_URL}/vault/document/${decryptedMetadata._id}`, {
         method: 'PUT',
@@ -201,7 +201,7 @@ export default function VaultScreen({ onBack, onNavigate }) {
           onPress: async () => {
             try {
               const token = await AsyncStorage.getItem('@farmer_token');
-              const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.76.22.64:5000/api';
+              const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.134:5000/api';
               
               const res = await fetch(`${API_URL}/vault/document/${decryptedMetadata._id}`, {
                 method: 'DELETE',

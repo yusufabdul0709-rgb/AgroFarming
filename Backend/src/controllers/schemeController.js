@@ -9,9 +9,14 @@ export const matchSchemeVault = async (req, res) => {
   }
 
   try {
-    // 1. Fetch user documents
-    const [docs] = await pool.query('SELECT documentType, issueDate, expiryDate FROM documents WHERE user = ?', [userId]);
-    const userStoredDocTypes = docs.map(d => d.documentType.toLowerCase());
+    let userStoredDocTypes = [];
+    if (pool) {
+      // 1. Fetch user documents
+      const [docs] = await pool.query('SELECT documentType, issueDate, expiryDate FROM documents WHERE user = ?', [userId]);
+      userStoredDocTypes = docs.map(d => d.documentType.toLowerCase());
+    } else {
+      console.warn('[Schemes] Database offline. Proceeding with empty user document list.');
+    }
 
     // 2. Fetch active schemes
     const activeSchemes = await Scheme.find({});

@@ -33,7 +33,7 @@ export const ProfileProvider = ({ children }) => {
   // Helper to fetch farm twin details
   const fetchFarmTwin = async (userId, token) => {
     try {
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.39:5000/api';
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.134:5000/api';
       const res = await fetch(`${API_URL}/farm/twin/${userId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -146,7 +146,7 @@ export const ProfileProvider = ({ children }) => {
       setAuthToken(token);
       await AsyncStorage.setItem('@farmer_token', token);
 
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.39:5000/api';
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.134:5000/api';
       const res = await fetch(`${API_URL}/auth/sync`, {
         method: 'POST',
         headers: { 

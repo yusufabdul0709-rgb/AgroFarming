@@ -66,10 +66,22 @@ export const uploadDocument = async (req, res) => {
       documentNumber = 'DOC-12345';
     }
 
-    // 2. Encrypt the file data
+    // 2. If database pool is not available (MOCK DB MODE), return success with metadata only
+    if (!pool) {
+      console.warn('[Vault] Database pool not available. Returning mock success response.');
+      const docId = `doc_${Date.now()}`;
+      return res.json({
+        status: 'success',
+        message: 'Document processed (database offline — not persisted).',
+        documentId: docId,
+        metadata: extractedMetadata
+      });
+    }
+
+    // 3. Encrypt the file data
     const encryptedUrl = encryptText(fileDataUrl); // In a real app, upload to S3/Supabase Storage, then encrypt the URL. Here we encrypt base64 for simplicity in MVP.
 
-    // 3. Save to database
+    // 4. Save to database
     const docId = `doc_${Date.now()}`;
     const issueDate = extractedMetadata.issueDate ? new Date(extractedMetadata.issueDate) : null;
     const expiryDate = extractedMetadata.expiryDate ? new Date(extractedMetadata.expiryDate) : null;
@@ -105,6 +117,10 @@ export const getDocuments = async (req, res) => {
     return res.status(400).json({ status: 'error', message: 'Missing user ID' });
   }
 
+  if (!pool) {
+    return res.json({ status: 'success', documents: [], message: 'Database offline' });
+  }
+
   try {
     const [rows] = await pool.query('SELECT _id, category, documentType, documentNumber, extractedMetadata, format, issueDate, expiryDate, createdAt FROM documents WHERE user = ? ORDER BY createdAt DESC', [userId]);
     
@@ -124,6 +140,10 @@ export const getDocuments = async (req, res) => {
 export const decryptDocument = async (req, res) => {
   const { id } = req.params;
   const userId = req.user?.id || req.user?._id || req.query.userId;
+
+  if (!pool) {
+    return res.status(503).json({ status: 'error', message: 'Database offline. Cannot decrypt documents.' });
+  }
 
   try {
     const [rows] = await pool.query('SELECT encryptedUrl FROM documents WHERE _id = ? AND user = ?', [id, userId]);
@@ -151,6 +171,10 @@ export const updateDocument = async (req, res) => {
     return res.status(401).json({ status: 'error', message: 'Unauthorized' });
   }
 
+  if (!pool) {
+    return res.json({ status: 'success', message: 'Document updated (database offline — not persisted).' });
+  }
+
   try {
     await pool.query(
       'UPDATE documents SET category = ?, documentType = ?, format = ? WHERE _id = ? AND user = ?',
@@ -169,6 +193,10 @@ export const deleteDocument = async (req, res) => {
 
   if (!userId) {
     return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+  }
+
+  if (!pool) {
+    return res.json({ status: 'success', message: 'Document deleted (database offline).' });
   }
 
   try {

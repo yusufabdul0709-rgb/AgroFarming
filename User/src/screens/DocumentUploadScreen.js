@@ -64,7 +64,8 @@ export default function DocumentUploadScreen({ onBack }) {
         result = await ImagePicker.launchCameraAsync({
           mediaTypes: ['images'],
           base64: true,
-          quality: 0.5
+          quality: 0.5,
+          exif: false,
         });
       } else {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -75,19 +76,43 @@ export default function DocumentUploadScreen({ onBack }) {
         result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ['images'],
           base64: true,
-          quality: 0.5
+          quality: 0.5,
+          exif: false,
         });
       }
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setImageUri(result.assets[0].uri);
+        const asset = result.assets[0];
+        let base64Data = asset.base64;
+
+        // If base64 was not returned directly, read the URI as base64
+        if (!base64Data && asset.uri) {
+          try {
+            base64Data = await readUriAsBase64(asset.uri);
+          } catch (readErr) {
+            console.warn('Failed to read URI as base64, trying FileSystem:', readErr);
+            try {
+              const fileContent = await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.Base64 });
+              base64Data = fileContent;
+            } catch (fsErr) {
+              console.error('FileSystem fallback also failed:', fsErr);
+            }
+          }
+        }
+
+        if (!base64Data) {
+          alert('Could not read the selected image. Please try again or use the camera instead.');
+          return;
+        }
+
+        setImageUri(asset.uri);
         setFileName(null);
         setSelectedFormat('Image');
-        processDocument(result.assets[0].base64, null, 'Image');
+        processDocument(base64Data, null, 'Image');
       }
     } catch (e) {
-      console.error(e);
-      alert('Failed to access media picker.');
+      console.error('Image picker error:', e);
+      alert('Upload failed: ' + (e.message || 'Unknown error'));
     }
   };
 
@@ -115,7 +140,7 @@ export default function DocumentUploadScreen({ onBack }) {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: '*/*',
-        copyToCacheDirectory: false // Returns content:// URI directly which is readable by ContentResolver
+        copyToCacheDirectory: true // Copy to cache so we get a readable file:// URI
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -152,7 +177,7 @@ export default function DocumentUploadScreen({ onBack }) {
     setIsProcessing(true);
     try {
       const token = await AsyncStorage.getItem('@farmer_token');
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.76.22.64:5000/api';
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.134:5000/api';
       
       const res = await fetch(`${API_URL}/vault/upload`, {
         method: 'POST',
@@ -217,7 +242,7 @@ export default function DocumentUploadScreen({ onBack }) {
     setIsSaving(true);
     try {
       const token = await AsyncStorage.getItem('@farmer_token');
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.76.22.64:5000/api';
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.134:5000/api';
       
       const res = await fetch(`${API_URL}/vault/document/${docId}`, {
         method: 'PUT',
