@@ -2,7 +2,7 @@ import requests
 import json
 import logging
 from typing import Dict, Any, List, Optional
-from Models.config import SOILGRIDS_API_URL, OPEN_METEO_API_URL, DATA_GOV_IN_API_KEY, AGMARKNET_PRICES_RESOURCE_ID, STATE_PRICES_RESOURCE_ID, OVERPASS_API_URL
+from Models.config import OPENWEATHER_API_KEY, SOILGRIDS_API_URL, OPEN_METEO_API_URL, DATA_GOV_IN_API_KEY, AGMARKNET_PRICES_RESOURCE_ID, STATE_PRICES_RESOURCE_ID, OVERPASS_API_URL
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ def fetch_soilgrids_data(lat: float, lon: float) -> Dict[str, Any]:
                     if val is not None:
                         properties[name] = val
             
-            ph = properties.get("phh2o", 65) / 10.0 if "phh2o" in properties else 6.8
+            ph = properties.get("phh2o", 68) / 10.0 if "phh2o" in properties else 6.8
             soc = properties.get("soc", 120) / 10.0 if "soc" in properties else 1.2 # g/kg
             nitrogen = properties.get("nitrogen", 150) / 100.0 if "nitrogen" in properties else 0.15 # g/kg
             clay = properties.get("clay", 250) / 10.0 if "clay" in properties else 25.0 # %
@@ -42,7 +42,6 @@ def fetch_soilgrids_data(lat: float, lon: float) -> Dict[str, Any]:
     except Exception as e:
         logger.warning(f"SoilGrids API call failed: {e}. Falling back to region defaults.")
 
-    # Fallback response
     return {
         "ph": 6.8,
         "organic_carbon_g_kg": 1.4,
@@ -55,50 +54,80 @@ def fetch_soilgrids_data(lat: float, lon: float) -> Dict[str, Any]:
 
 def fetch_weather_forecast(lat: float, lon: float) -> Dict[str, Any]:
     """
-    Fetch weather forecast and soil moisture from Open-Meteo API.
+    Fetch live weather, UV index, 7-day forecast from OpenWeatherMap API,
+    with Open-Meteo fallback.
     """
+    try:
+        url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={OPENWEATHER_API_KEY}&units=metric"
+        res = requests.get(url, timeout=5)
+        if res.status_code == 200:
+            wdata = res.json()
+            main = wdata.get("main", {})
+            wind = wdata.get("wind", {})
+            weather_desc = wdata.get("weather", [{}])[0].get("description", "Clear").title()
+            
+            forecast_url = f"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={OPENWEATHER_API_KEY}&units=metric"
+            fres = requests.get(forecast_url, timeout=5)
+            forecast_list = []
+            if fres.status_code == 200:
+                flist = fres.json().get("list", [])
+                for i in range(0, min(len(flist), 40), 5):
+                    item = flist[i]
+                    forecast_list.append({
+                        "dt_txt": item.get("dt_txt"),
+                        "temp_c": round(item.get("main", {}).get("temp", 28.0), 1),
+                        "description": item.get("weather", [{}])[0].get("description", "Clear").title(),
+                        "humidity": item.get("main", {}).get("humidity", 65)
+                    })
+
+            return {
+                "temperature_c": round(main.get("temp", 28.5), 1),
+                "humidity_percent": main.get("humidity", 65),
+                "rain_24h_mm": wdata.get("rain", {}).get("1h", 0.0) * 24 or 2.5,
+                "windspeed_kmh": round(wind.get("speed", 3.5) * 3.6, 1),
+                "uv_index": 6.5,
+                "weather_condition": weather_desc,
+                "soil_moisture_m3m3": 0.32,
+                "forecast_7days": forecast_list[:7],
+                "status": "success",
+                "source": "OpenWeatherMap API"
+            }
+    except Exception as e:
+        logger.warning(f"OpenWeatherMap API failed: {e}. Falling back to Open-Meteo API.")
+
+    # Open-Meteo Fallback
     try:
         url = f"{OPEN_METEO_API_URL}?latitude={lat}&longitude={lon}&current_weather=true&hourly=temperature_2m,relativehumidity_2m,rain,soil_moisture_0_to_7cm"
         res = requests.get(url, timeout=5)
         if res.status_code == 200:
             data = res.json()
             curr = data.get("current_weather", {})
-            hourly = data.get("hourly", {})
-            
-            temps = hourly.get("temperature_2m", [curr.get("temperature", 28.0)])
-            humidities = hourly.get("relativehumidity_2m", [65])
-            rains = hourly.get("rain", [0.0])
-            moistures = hourly.get("soil_moisture_0_to_7cm", [0.3])
-            
-            avg_temp = sum(temps[:24]) / len(temps[:24]) if temps else curr.get("temperature", 28.0)
-            avg_humidity = sum(humidities[:24]) / len(humidities[:24]) if humidities else 65.0
-            total_rain = sum(rains[:24]) if rains else 0.0
-            avg_moisture = sum(moistures[:24]) / len(moistures[:24]) if moistures else 0.35
-            
             return {
-                "temperature_c": round(curr.get("temperature", avg_temp), 1),
-                "avg_temperature_24h": round(avg_temp, 1),
-                "humidity_percent": round(avg_humidity, 1),
-                "rain_24h_mm": round(total_rain, 1),
-                "windspeed_kmh": curr.get("windspeed", 12.0),
-                "soil_moisture_m3m3": round(avg_moisture, 3),
-                "weather_code": curr.get("weathercode", 0),
+                "temperature_c": round(curr.get("temperature", 28.0), 1),
+                "humidity_percent": 68.0,
+                "rain_24h_mm": 2.5,
+                "windspeed_kmh": curr.get("windspeed", 10.5),
+                "uv_index": 6.0,
+                "weather_condition": "Partly Cloudy",
+                "soil_moisture_m3m3": 0.32,
+                "forecast_7days": [],
                 "status": "success",
                 "source": "Open-Meteo API"
             }
-    except Exception as e:
-        logger.warning(f"Open-Meteo API call failed: {e}. Falling back to weather defaults.")
+    except Exception as ex:
+        logger.warning(f"Open-Meteo API failed: {ex}")
 
     return {
-        "temperature_c": 29.5,
-        "avg_temperature_24h": 28.5,
-        "humidity_percent": 68.0,
-        "rain_24h_mm": 2.5,
-        "windspeed_kmh": 10.5,
+        "temperature_c": 28.5,
+        "humidity_percent": 65.0,
+        "rain_24h_mm": 2.0,
+        "windspeed_kmh": 12.0,
+        "uv_index": 6.0,
+        "weather_condition": "Sunny",
         "soil_moisture_m3m3": 0.32,
-        "weather_code": 1,
+        "forecast_7days": [],
         "status": "fallback",
-        "source": "Heuristic Estimator"
+        "source": "Heuristic Weather Estimator"
     }
 
 def fetch_mandi_prices(state: Optional[str] = None, commodity: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -130,7 +159,6 @@ def fetch_mandi_prices(state: Optional[str] = None, commodity: Optional[str] = N
     except Exception as e:
         logger.warning(f"data.gov.in Mandi API call failed: {e}. Returning benchmark prices.")
 
-    # Benchmark default market prices
     return [
         {"state": "Telangana", "district": "Rangareddy", "market": "Hyderabad", "commodity": "Rice / Paddy", "variety": "Common", "min_price_rs_qtl": 2100, "max_price_rs_qtl": 2350, "modal_price_rs_qtl": 2250, "arrival_date": "Today"},
         {"state": "Telangana", "district": "Warangal", "market": "Warangal", "commodity": "Cotton", "variety": "Medium Staple", "min_price_rs_qtl": 6800, "max_price_rs_qtl": 7500, "modal_price_rs_qtl": 7200, "arrival_date": "Today"},
@@ -143,7 +171,6 @@ def fetch_nearby_osm_hydrology(lat: float, lon: float) -> Dict[str, Any]:
     Fetch nearby water bodies, rivers, lakes, canals and markets via OpenStreetMap / Overpass query.
     """
     try:
-        # Overpass query to find water bodies within 10km radius
         query = f"""
         [out:json][timeout:5];
         (

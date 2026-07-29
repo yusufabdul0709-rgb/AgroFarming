@@ -20,7 +20,6 @@ export default function MarketIntelligenceScreen({ onBack }) {
       }
     } catch (e) {
       console.warn('Agmarknet fallback triggered', e);
-    } finally {
       // Set rich default mandis if API is loading/offline
       setPrices([
         { commodity: 'Paddy (Common)', market: 'Warangal Mandi', state: 'Telangana', max_price: '2450', trend: '+4.2%' },
@@ -29,6 +28,7 @@ export default function MarketIntelligenceScreen({ onBack }) {
         { commodity: 'Cotton (Long Staple)', market: 'Rajkot Mandi', state: 'Gujarat', max_price: '7100', trend: '+5.8%' },
         { commodity: 'Soyabean', market: 'Indore Mandi', state: 'Madhya Pradesh', max_price: '4850', trend: '+1.0%' },
       ]);
+    } finally {
       setLoading(false);
     }
   };

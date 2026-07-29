@@ -11,6 +11,7 @@ import { Sliders } from 'lucide-react-native';
 import { THEME } from '../context/ThemeContext';
 import { useProfile } from '../context/ProfileContext';
 import GlassCard from '../components/GlassCard';
+import { API_BASE_URL } from '../config/api';
 
 export default function TwinSimulatorScreen() {
   const { farmerProfile } = useProfile();
@@ -21,9 +22,27 @@ export default function TwinSimulatorScreen() {
   const [simulating, setSimulating] = useState(false);
   const [simResult, setSimResult] = useState(null);
 
-  const triggerSimulation = () => {
+  const triggerSimulation = async () => {
     setSimulating(true);
-    setTimeout(() => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/farm/simulate/${farmerProfile?._id || 'default_user'}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          crop: simCrop,
+          rainfallVariation: rainVar,
+          irrigationFrequency: irrFreq,
+          landArea: farmerProfile?.landArea || 2.5
+        })
+      });
+      const result = await response.json();
+      if (result.status === 'success') {
+        setSimResult(result.data.simulation);
+      } else {
+        throw new Error('Simulation failed');
+      }
+    } catch (e) {
+      // Fallback local simulation
       let baseYield = 4.2; // Tons/acre
       let baseProfit = 31000; // Rs/acre
       let baseWater = 1350; // mm
@@ -71,7 +90,7 @@ export default function TwinSimulatorScreen() {
         baseProfit -= (irrFreq - 3) * 600;
       }
 
-      const acres = Number(farmerProfile.landArea) || 2.5;
+      const acres = Number(farmerProfile?.landArea) || 2.5;
 
       setSimResult({
         yield: `${baseYield.toFixed(2)} Tons/Acre`,
@@ -82,8 +101,9 @@ export default function TwinSimulatorScreen() {
         suitability: `${Math.min(100, suit)}%`,
         risk: `${Math.min(100, Math.round(risk))}%`
       });
+    } finally {
       setSimulating(false);
-    }, 1200);
+    }
   };
 
   return (

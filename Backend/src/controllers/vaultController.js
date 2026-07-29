@@ -149,7 +149,7 @@ export const updateDocument = async (req, res) => {
         documentType: documentType || 'Aadhaar Card', 
         format: format || 'Image' 
       },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!updatedDoc) {

@@ -11,38 +11,65 @@ import {
 } from 'react-native';
 import { MapPin, Search } from 'lucide-react-native';
 import { THEME } from '../context/ThemeContext';
+import { API_BASE_URL } from '../config/api';
+import useDeviceLocation from '../hooks/useDeviceLocation';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function MarketProduceScreen({ onBack }) {
-  const categories = [
-    { emoji: '🌾', label: 'Paddy', color: '#EAF8EE' },
-    { emoji: '🌾', label: 'Millets', color: '#FDF6EC' },
-    { emoji: '🫘', label: 'Pulses', color: '#EBF6FD' },
-    { emoji: '🌻', label: 'Oilseeds', color: '#F7F1EE' },
-    { emoji: '🥦', label: 'Vegetables', color: '#F3F8F2' }
-  ];
+  const { location, address, errorMsg } = useDeviceLocation();
+  const [listings, setListings] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
 
-  const listings = [
-    { 
-      id: 1, 
-      name: 'Paddy (Swarna)', 
-      qty: '50 Quintals', 
-      price: '₹2,450 /qtl', 
-      loc: 'Warangal', 
-      time: '2h ago',
-      img: 'https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?auto=format&fit=crop&w=150&q=80'
-    },
-    { 
-      id: 2, 
-      name: 'Red Gram', 
-      qty: '20 Quintals', 
-      price: '₹6,200 /qtl', 
-      loc: 'Mahabubabad', 
-      time: '4h ago',
-      img: 'https://images.unsplash.com/photo-1546964124-0cce460f38ef?auto=format&fit=crop&w=150&q=80'
-    }
-  ];
+  React.useEffect(() => {
+    const fetchListings = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/market/produce`);
+        const result = await response.json();
+        if (result.status === 'success') {
+          // map to correct fields if necessary, or just use them
+          const data = result.data.listings || [];
+          // Normalizing schema if needed
+          const normalized = data.map((item, index) => ({
+            id: item.id || item._id || index,
+            name: item.name || item.title || 'Produce',
+            qty: item.qty || item.quantity || '0',
+            price: item.price || '₹0',
+            loc: item.loc || item.location || 'Unknown',
+            time: item.time || 'recently',
+            img: item.img || item.image || 'https://images.unsplash.com/photo-1590779033100-9f60a05a013d?auto=format&fit=crop&w=250&q=80'
+          }));
+          setListings(normalized);
+        } else {
+          throw new Error('API failed');
+        }
+      } catch (e) {
+        setListings([
+          { 
+            id: 1, 
+            name: 'Paddy (Swarna)', 
+            qty: '50 Quintals', 
+            price: '₹2,450 /qtl', 
+            loc: 'Warangal', 
+            time: '2h ago',
+            img: 'https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?auto=format&fit=crop&w=150&q=80'
+          },
+          { 
+            id: 2, 
+            name: 'Red Gram', 
+            qty: '20 Quintals', 
+            price: '₹6,200 /qtl', 
+            loc: 'Mahabubabad', 
+            time: '4h ago',
+            img: 'https://images.unsplash.com/photo-1546964124-0cce460f38ef?auto=format&fit=crop&w=150&q=80'
+          }
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchListings();
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -59,7 +86,7 @@ export default function MarketProduceScreen({ onBack }) {
         {/* Location pin indicator */}
         <View style={styles.locRow}>
           <MapPin size={14} color={THEME.primary} />
-          <Text style={styles.locText}>Rajapur, Warangal</Text>
+          <Text style={styles.locText}>{address || 'Rajapur, Warangal'}</Text>
         </View>
 
         {/* Search bar */}
@@ -92,7 +119,13 @@ export default function MarketProduceScreen({ onBack }) {
         {/* Top Categories */}
         <Text style={styles.sectionHeader}>Top Categories</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
-          {categories.map((cat, i) => (
+          {[
+            { emoji: '🌾', label: 'Paddy', color: '#EAF8EE' },
+            { emoji: '🌾', label: 'Millets', color: '#FDF6EC' },
+            { emoji: '🫘', label: 'Pulses', color: '#EBF6FD' },
+            { emoji: '🌻', label: 'Oilseeds', color: '#F7F1EE' },
+            { emoji: '🥦', label: 'Vegetables', color: '#F3F8F2' }
+          ].map((cat, i) => (
             <TouchableOpacity key={i} style={styles.catCell} onPress={() => alert(`Filtering by ${cat.label}...`)}>
               <View style={[styles.catIconBg, { backgroundColor: cat.color }]}>
                 <Text style={styles.catEmoji}>{cat.emoji}</Text>

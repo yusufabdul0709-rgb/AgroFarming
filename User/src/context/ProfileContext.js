@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { API_BASE_URL } from '../config/api';
+
 const ProfileContext = createContext(null);
 
 const DEFAULT_PROFILE = {
@@ -31,7 +33,7 @@ export const ProfileProvider = ({ children }) => {
 
   const fetchFarmTwin = async (userId, token) => {
     try {
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.42:5000/api';
+      const API_URL = API_BASE_URL;
       const res = await fetch(`${API_URL}/farm/twin/${userId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -81,7 +83,7 @@ export const ProfileProvider = ({ children }) => {
 
   const loginFarmer = async (phone, password) => {
     try {
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.42:5000/api';
+      const API_URL = API_BASE_URL;
       const res = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -110,33 +112,13 @@ export const ProfileProvider = ({ children }) => {
     }
   };
 
-<<<<<<< HEAD
   const registerFarmer = async (phone, password, name) => {
-=======
-  const registerFarmer = async (phone, password, name, emailInput, locationData = {}) => {
->>>>>>> 913d4a08a4505b68cefc5f0faab1c47713518e8d
     try {
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.42:5000/api';
+      const API_URL = API_BASE_URL;
       const res = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
-<<<<<<< HEAD
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, password, name, isRegistering: true })
-=======
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ 
-          phone, 
-          name, 
-          preferredLanguage: 'English',
-          gpsLocation: locationData.gpsLocation,
-          village: locationData.village,
-          district: locationData.district,
-          state: locationData.state
-        })
->>>>>>> 913d4a08a4505b68cefc5f0faab1c47713518e8d
       });
       
       const resData = await res.json();
@@ -169,7 +151,7 @@ export const ProfileProvider = ({ children }) => {
 
       if (updatedProfile._id) {
         const token = authToken || await AsyncStorage.getItem('@farmer_token');
-        const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.42:5000/api';
+        const API_URL = API_BASE_URL;
         
         const headers = { 'Content-Type': 'application/json' };
         if (token) {
@@ -198,7 +180,7 @@ export const ProfileProvider = ({ children }) => {
       const profile = farmerProfile;
       if (profile && profile._id) {
         const token = authToken || await AsyncStorage.getItem('@farmer_token');
-        const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.42:5000/api';
+        const API_URL = API_BASE_URL;
         
         const headers = { 'Content-Type': 'application/json' };
         if (token) {

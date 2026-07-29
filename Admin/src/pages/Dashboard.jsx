@@ -1,17 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, Sprout, Droplets, AlertTriangle, TrendingUp, ShieldAlert, Plus } from 'lucide-react';
 import CropChart from '../charts/CropChart';
 import PriceChart from '../charts/PriceChart';
 
+const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL || 'http://localhost:5000';
+
 export default function Dashboard() {
+  const [analytics, setAnalytics] = useState(null);
   const [alerts, setAlerts] = useState([
-    { id: 1, title: 'Heatwave Alert', message: 'Temperatures expected to exceed 42°C in Punjab region.', severity: 'High', type: 'Weather' },
-    { id: 2, title: 'Paddy Fungal Blight Outbreak', message: 'Detected in Rampur district, UP. Diagnostic alert broadcasted.', severity: 'Critical', type: 'Disease' },
+    { id: 1, title: 'Heatwave Alert', message: 'Temperatures expected to exceed 42°C in Telangana region.', severity: 'High', type: 'Weather' },
+    { id: 2, title: 'Paddy Fungal Blight Outbreak', message: 'Detected in Rangareddy district. Diagnostic alert broadcasted.', severity: 'Critical', type: 'Disease' },
     { id: 3, title: 'PM-KISAN Enrollment Deadline', message: 'Applications close in 2 weeks. Automated SMS reminder queued.', severity: 'Medium', type: 'Scheme' }
   ]);
 
   const [newAlert, setNewAlert] = useState({ title: '', message: '', severity: 'Medium', type: 'Weather' });
   const [showAddAlert, setShowAddAlert] = useState(false);
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/api/admin/analytics`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success' && data.analytics) {
+          setAnalytics(data.analytics);
+        }
+      })
+      .catch(err => console.warn('[Admin Dashboard] Analytics fetch fallback:', err.message));
+      
+    fetch(`${API_BASE_URL}/api/admin/alerts`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success' && data.alerts && data.alerts.length > 0) {
+          setAlerts(data.alerts);
+        }
+      })
+      .catch(err => console.warn('[Admin Dashboard] Alerts fetch fallback:', err.message));
+  }, []);
+
+  const totalFarmers = analytics?.totalFarmers || 128;
+  const activeFarms = analytics?.activeFarms || 85;
+  const activeSchemes = analytics?.activeSchemes || 14;
+  const totalAIEvaluations = analytics?.totalAIEvaluations || 520;
+
 
   const handleCreateAlert = (e) => {
     e.preventDefault();
@@ -107,7 +136,7 @@ export default function Dashboard() {
           </div>
           <div>
             <p style={{ margin: 0, fontSize: '12px', color: '#c2c9bf' }}>Active Farmers</p>
-            <h3 style={{ margin: '4px 0 0 0', fontSize: '24px', fontWeight: '700' }}>1,840</h3>
+            <h3 style={{ margin: '4px 0 0 0', fontSize: '24px', fontWeight: '700' }}>{totalFarmers}</h3>
           </div>
         </div>
 
@@ -116,8 +145,8 @@ export default function Dashboard() {
             <Sprout size={24} />
           </div>
           <div>
-            <p style={{ margin: 0, fontSize: '12px', color: '#c2c9bf' }}>Total Managed Area</p>
-            <h3 style={{ margin: '4px 0 0 0', fontSize: '24px', fontWeight: '700' }}>2,580 Acres</h3>
+            <p style={{ margin: 0, fontSize: '12px', color: '#c2c9bf' }}>Active Managed Farms</p>
+            <h3 style={{ margin: '4px 0 0 0', fontSize: '24px', fontWeight: '700' }}>{activeFarms}</h3>
           </div>
         </div>
 
@@ -126,8 +155,8 @@ export default function Dashboard() {
             <Droplets size={24} />
           </div>
           <div>
-            <p style={{ margin: 0, fontSize: '12px', color: '#c2c9bf' }}>Avg Water Score</p>
-            <h3 style={{ margin: '4px 0 0 0', fontSize: '24px', fontWeight: '700' }}>82%</h3>
+            <p style={{ margin: 0, fontSize: '12px', color: '#c2c9bf' }}>Active Government Schemes</p>
+            <h3 style={{ margin: '4px 0 0 0', fontSize: '24px', fontWeight: '700' }}>{activeSchemes}</h3>
           </div>
         </div>
 
@@ -136,8 +165,8 @@ export default function Dashboard() {
             <TrendingUp size={24} />
           </div>
           <div>
-            <p style={{ margin: 0, fontSize: '12px', color: '#c2c9bf' }}>Est. Yield Season Value</p>
-            <h3 style={{ margin: '4px 0 0 0', fontSize: '24px', fontWeight: '700' }}>₹4.2 Cr</h3>
+            <p style={{ margin: 0, fontSize: '12px', color: '#c2c9bf' }}>AI Model Evaluations</p>
+            <h3 style={{ margin: '4px 0 0 0', fontSize: '24px', fontWeight: '700' }}>{totalAIEvaluations}</h3>
           </div>
         </div>
       </div>

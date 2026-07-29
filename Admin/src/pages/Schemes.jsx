@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Landmark, Calendar, ShieldCheck, Trash2, Plus, AlertCircle } from 'lucide-react';
+
+const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL || 'http://localhost:5000';
 
 export default function Schemes() {
   const [schemes, setSchemes] = useState([
@@ -32,8 +34,42 @@ export default function Schemes() {
     }
   ]);
 
+  const [queue, setQueue] = useState([
+    {
+      id: 'q-1',
+      name: 'Rythu Bandhu Scheme (Telangana)',
+      benefits: '₹5,000 per acre per season to support initial investment.',
+      maxLand: '5 Acres',
+      docs: 'Pattadar Passbook, Aadhaar',
+      source: 'telangana.gov.in',
+      categories: 'All',
+      state: 'Telangana',
+      deadline: 'Upcoming'
+    }
+  ]);
+
   const [newScheme, setNewScheme] = useState({ name: '', benefits: '', maxLand: '', categories: '', state: '', deadline: '' });
   const [showAddForm, setShowAddForm] = useState(false);
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/api/schemes/all`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success' && data.data && data.data.length > 0) {
+          setSchemes(data.data);
+        }
+      })
+      .catch(err => console.warn('[Admin Schemes] Schemes fetch fallback:', err.message));
+
+    fetch(`${API_BASE_URL}/api/schemes/ingest/queue`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success' && data.data) {
+          setQueue(data.data);
+        }
+      })
+      .catch(err => console.warn('[Admin Schemes] Queue fetch fallback:', err.message));
+  }, []);
 
   const handleAddScheme = (e) => {
     e.preventDefault();
@@ -46,6 +82,7 @@ export default function Schemes() {
   const handleDelete = (id) => {
     setSchemes(schemes.filter(s => s.id !== id));
   };
+
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -69,44 +106,49 @@ export default function Schemes() {
       </div>
 
       {/* Scraper Approval Queue */}
-      <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '16px', borderColor: '#F59E0B' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600', color: '#F59E0B', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <AlertCircle size={20} /> Pending Approval (Automated Scraper)
-          </h3>
-          <span style={{ fontSize: '12px', background: 'rgba(245, 158, 11, 0.2)', padding: '4px 10px', borderRadius: '12px', color: '#FCD34D' }}>
-            1 New Scheme Detected
-          </span>
-        </div>
-        <div style={{ backgroundColor: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '12px', border: '1px dashed #F59E0B' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <span style={{ fontWeight: '700', fontSize: '16px', color: 'white' }}>Rythu Bandhu Scheme (Telangana)</span>
-              <p style={{ margin: '6px 0', fontSize: '13px', color: '#c2c9bf' }}>Extracted Benefits: ₹5,000 per acre per season to support initial investment.</p>
-              <div style={{ display: 'flex', gap: '16px', marginTop: '8px', fontSize: '12px', color: '#9CA3AF' }}>
-                <span><b>Max Land:</b> 5 Acres</span>
-                <span><b>Required Docs:</b> Pattadar Passbook, Aadhaar</span>
-                <span><b>Source:</b> telangana.gov.in</span>
+      {queue.length > 0 && (
+        <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '16px', borderColor: '#F59E0B' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600', color: '#F59E0B', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <AlertCircle size={20} /> Pending Approval (Automated Scraper)
+            </h3>
+            <span style={{ fontSize: '12px', background: 'rgba(245, 158, 11, 0.2)', padding: '4px 10px', borderRadius: '12px', color: '#FCD34D' }}>
+              {queue.length} New Scheme{queue.length > 1 ? 's' : ''} Detected
+            </span>
+          </div>
+          {queue.map(q => (
+            <div key={q.id} style={{ backgroundColor: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '12px', border: '1px dashed #F59E0B' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <span style={{ fontWeight: '700', fontSize: '16px', color: 'white' }}>{q.name}</span>
+                  <p style={{ margin: '6px 0', fontSize: '13px', color: '#c2c9bf' }}>Extracted Benefits: {q.benefits}</p>
+                  <div style={{ display: 'flex', gap: '16px', marginTop: '8px', fontSize: '12px', color: '#9CA3AF' }}>
+                    <span><b>Max Land:</b> {q.maxLand}</span>
+                    <span><b>Required Docs:</b> {q.docs}</span>
+                    <span><b>Source:</b> {q.source}</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button className="pill-btn secondary" style={{ borderColor: '#EF4444', color: '#EF4444' }} onClick={() => setQueue(queue.filter(item => item.id !== q.id))}>Reject</button>
+                  <button className="pill-btn" style={{ background: '#F59E0B', color: 'white' }} onClick={() => {
+                    setSchemes([{
+                      id: `scheme-new-${Date.now()}`,
+                      name: q.name,
+                      benefits: q.benefits,
+                      maxLand: q.maxLand,
+                      categories: q.categories,
+                      state: q.state,
+                      deadline: q.deadline
+                    }, ...schemes]);
+                    setQueue(queue.filter(item => item.id !== q.id));
+                    alert('Scheme Approved and Published!');
+                  }}>Approve & Publish</button>
+                </div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button className="pill-btn secondary" style={{ borderColor: '#EF4444', color: '#EF4444' }} onClick={() => alert('Scheme rejected.')}>Reject</button>
-              <button className="pill-btn" style={{ background: '#F59E0B', color: 'white' }} onClick={() => {
-                setSchemes([{
-                  id: 'scheme-new',
-                  name: 'Rythu Bandhu Scheme',
-                  benefits: '₹5,000 per acre per season.',
-                  maxLand: '5.0 Acres',
-                  categories: 'All',
-                  state: 'Telangana',
-                  deadline: 'Upcoming'
-                }, ...schemes]);
-                alert('Scheme Approved and Published!');
-              }}>Approve & Publish</button>
-            </div>
-          </div>
+          ))}
         </div>
-      </div>
+      )}
 
       {showAddForm && (
         <form onSubmit={handleAddScheme} className="glass-panel" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>

@@ -1,13 +1,33 @@
-import React from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
 import { ArrowLeft, ShoppingCart, Plus, Tag } from 'lucide-react-native';
-
-const PRODUCE = [
-  { title: 'Organic Swarna Paddy', qty: '45 Quintals', price: '₹2,450 / qtl', seller: 'Ramesh Kumar', img: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?q=80&w=200&auto=format&fit=crop' },
-  { title: 'High Grade Wheat', qty: '20 Quintals', price: '₹2,325 / qtl', seller: 'Suresh Patel', img: 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?q=80&w=200&auto=format&fit=crop' }
-];
+import { API_BASE_URL } from '../config/api';
 
 export default function MarketplaceScreen({ onBack }) {
+  const [produce, setProduce] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProduce = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/market/produce`);
+        const result = await response.json();
+        if (result.status === 'success') {
+          setProduce(result.data.listings || []);
+        } else {
+          throw new Error('API failed');
+        }
+      } catch (e) {
+        setProduce([
+          { title: 'Organic Swarna Paddy', qty: '45 Quintals', price: '₹2,450 / qtl', seller: 'Ramesh Kumar', img: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?q=80&w=200&auto=format&fit=crop' },
+          { title: 'High Grade Wheat', qty: '20 Quintals', price: '₹2,325 / qtl', seller: 'Suresh Patel', img: 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?q=80&w=200&auto=format&fit=crop' }
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProduce();
+  }, []);
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -23,7 +43,10 @@ export default function MarketplaceScreen({ onBack }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {PRODUCE.map((item, idx) => (
+        {loading ? (
+          <ActivityIndicator size="large" color="#2e7d32" style={{ marginTop: 20 }} />
+        ) : (
+          produce.map((item, idx) => (
           <View key={idx} style={styles.itemCard}>
             <Image source={{ uri: item.img }} style={styles.itemImg} />
             <View style={{ flex: 1 }}>
@@ -36,7 +59,7 @@ export default function MarketplaceScreen({ onBack }) {
               <Text style={styles.buyTxt}>Buy Direct</Text>
             </TouchableOpacity>
           </View>
-        ))}
+        )))}
       </ScrollView>
     </View>
   );

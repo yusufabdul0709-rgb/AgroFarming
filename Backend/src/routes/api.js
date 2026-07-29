@@ -1,5 +1,5 @@
 import express from 'express';
-import { registerOrLogin, updateProfile, getAllFarmers } from '../controllers/authController.js';
+import { registerOrLogin, updateProfile, getProfile, getAllFarmers, syncProfile } from '../controllers/authController.js';
 import { getFarmTwin, simulateTwin, getAllFarms, updateFarmTwin } from '../controllers/farmController.js';
 import { getPrices, getMarketplaceListings, createMarketplaceListing } from '../controllers/marketController.js';
 import { getEligibleSchemes, createScheme, getAllSchemes, matchSchemeVault } from '../controllers/schemeController.js';
@@ -13,7 +13,8 @@ export const apiRouter = express.Router();
 
 // Authentication / Farmers routes
 apiRouter.post('/auth/login', registerOrLogin);
-// sync route removed
+apiRouter.post('/auth/sync', authMiddleware, syncProfile);
+apiRouter.get('/auth/profile/:userId', authMiddleware, getProfile);
 apiRouter.put('/auth/profile/:userId', authMiddleware, updateProfile);
 apiRouter.get('/auth/farmers', getAllFarmers);
 
@@ -101,4 +102,9 @@ apiRouter.post('/ai/orchestrate', orchestrateMasterAI);
 // Scheme Ingestion Service endpoints
 apiRouter.get('/schemes/ingest/queue', getSchemeReviewQueue);
 apiRouter.post('/schemes/ingest/approve', approveSchemeIngestion);
+
+// Admin Dashboard Analytics endpoint
+import { getAdminDashboardAnalytics } from '../controllers/adminController.js';
+apiRouter.get('/admin/analytics', getAdminDashboardAnalytics);
+
 

@@ -86,7 +86,7 @@ const reverseGeocodeMapbox = async (latitude, longitude, token) => {
       return {
         village: village || 'Kalyanpur',
         district: district || 'Kanpur',
-        state: state || 'Uttar Pradesh'
+        state: state || ''
       };
     }
   } catch (err) {
@@ -95,7 +95,7 @@ const reverseGeocodeMapbox = async (latitude, longitude, token) => {
   return {
     village: 'Kalyanpur',
     district: 'Kanpur',
-    state: 'Uttar Pradesh'
+    state: ''
   };
 };
 

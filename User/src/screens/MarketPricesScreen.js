@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -9,18 +9,79 @@ import {
 } from 'react-native';
 import { TrendingUp, ChevronDown } from 'lucide-react-native';
 import { THEME } from '../context/ThemeContext';
+import { API_BASE_URL } from '../config/api';
+import useDeviceLocation from '../hooks/useDeviceLocation';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function MarketPricesScreen({ onBack }) {
   const [activeCategory, setActiveCategory] = useState('Crops');
   const [activeInterval, setActiveInterval] = useState('1M');
-
-  const nearbyMarkets = [
+  const [nearbyMarkets, setNearbyMarkets] = useState([
     { name: 'Warangal Mandi', price: '₹2,450 /qtl' },
     { name: 'Khammam Mandi', price: '₹2,380 /qtl' },
     { name: 'Nizamabad Mandi', price: '₹2,420 /qtl' }
-  ];
+  ]);
+  const [currentPrice, setCurrentPrice] = useState('2,450');
+  const [priceTrend, setPriceTrend] = useState('+4.2%');
+  const [chartData, setChartData] = useState([35, 40, 52, 48, 62, 68, 80]);
+  const { location } = useDeviceLocation();
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/market/prices?latitude=${location?.coords?.latitude || 17.3850}&longitude=${location?.coords?.longitude || 78.4867}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data?.status === 'success' && data.data?.length > 0) {
+          const markets = data.data.slice(0, 3).map(m => ({
+            name: m.market || 'Local Mandi',
+            price: `₹${m.price || m.modal_price || 2450} /qtl`
+          }));
+          setNearbyMarkets(markets);
+          if (data.data[0]) {
+             setCurrentPrice(data.data[0].price || data.data[0].modal_price || '2,450');
+             if (data.data[0].trend) setPriceTrend(data.data[0].trend);
+          }
+        }
+      })
+      .catch(e => console.warn('Prices fetch failed:', e));
+  }, [location]);
+
+  useEffect(() => {
+    let days = 30;
+    if (activeInterval === '7D') days = 7;
+    else if (activeInterval === '3M') days = 90;
+    else if (activeInterval === '1Y') days = 365;
+
+    fetch(`${API_BASE_URL}/ai/price-prediction`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        commodity: 'Paddy',
+        district: 'Warangal',
+        state: 'Telangana',
+        current_price: 2450,
+        days: days
+      })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data?.status === 'success' && data.data?.price_trajectory) {
+           const trajectory = data.data.price_trajectory;
+           const step = Math.max(1, Math.floor(trajectory.length / 7));
+           const sampled = [];
+           for (let i = 0; i < trajectory.length && sampled.length < 7; i += step) {
+               sampled.push(trajectory[i].price);
+           }
+           if (sampled.length > 0) {
+               const min = Math.min(...sampled) * 0.9;
+               const max = Math.max(...sampled) * 1.1;
+               const normalized = sampled.map(p => Math.max(10, ((p - min) / (max - min)) * 100));
+               setChartData(normalized);
+           }
+        }
+      })
+      .catch(e => console.warn('Prediction fetch failed:', e));
+  }, [activeInterval]);
 
   return (
     <View style={styles.container}>
@@ -56,9 +117,9 @@ export default function MarketPricesScreen({ onBack }) {
         {/* Price Card */}
         <View style={styles.priceCard}>
           <View style={styles.priceCardHeader}>
-            <Text style={styles.priceVal}>₹2,450 <Text style={styles.qtlText}>/qtl</Text></Text>
+            <Text style={styles.priceVal}>₹{currentPrice} <Text style={styles.qtlText}>/qtl</Text></Text>
             <View style={styles.greenBadge}>
-              <Text style={styles.greenBadgeText}>▲ +4.2%</Text>
+              <Text style={styles.greenBadgeText}>{priceTrend.startsWith('-') ? '▼' : '▲'} {priceTrend}</Text>
             </View>
           </View>
           <Text style={styles.priceSub}>Today's Average Price</Text>
@@ -87,13 +148,9 @@ export default function MarketPricesScreen({ onBack }) {
             
             <View style={styles.chartPlotArea}>
               {/* Drawing simple polyline-like blocks representing nodes */}
-              <View style={[styles.chartBar, { height: '35%' }]} />
-              <View style={[styles.chartBar, { height: '40%' }]} />
-              <View style={[styles.chartBar, { height: '52%' }]} />
-              <View style={[styles.chartBar, { height: '48%' }]} />
-              <View style={[styles.chartBar, { height: '62%' }]} />
-              <View style={[styles.chartBar, { height: '68%' }]} />
-              <View style={[styles.chartBar, { height: '80%', backgroundColor: THEME.primary }]} />
+              {chartData.map((h, i) => (
+                <View key={i} style={[styles.chartBar, { height: `${h}%`, backgroundColor: i === chartData.length - 1 ? THEME.primary : 'rgba(44, 107, 67, 0.3)' }]} />
+              ))}
             </View>
           </View>
           

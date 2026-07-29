@@ -4,7 +4,8 @@ import { ArrowLeft, MoreHorizontal, MapPin } from 'lucide-react-native';
 import MapView, { Marker, UrlTile } from 'react-native-maps';
 import FieldDetailsScreen from './FieldDetailsScreen';
 
-import * as Location from 'expo-location';
+import useDeviceLocation from '../hooks/useDeviceLocation';
+import { useProfile } from '../context/ProfileContext';
 
 // Use Mapbox token from environment
 import MapboxAgriMap from '../components/MapboxAgriMap';
@@ -12,24 +13,22 @@ import MapboxAgriMap from '../components/MapboxAgriMap';
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN || process.env.VITE_MAPBOX_TOKEN || process.env.MAPBOX_TOKEN || '';
 
 export default function GISMapScreen({ userCoords, onBack }) {
+  const { location } = useDeviceLocation();
+  const { farmerProfile } = useProfile();
   const [showDetails, setShowDetails] = useState(false);
   const [currentCoords, setCurrentCoords] = useState(userCoords || { latitude: 17.6868, longitude: 83.2185 });
 
   React.useEffect(() => {
-    if (!userCoords) {
-      (async () => {
-        try {
-          const { status } = await Location.requestForegroundPermissionsAsync();
-          if (status === 'granted') {
-            const loc = await Location.getCurrentPositionAsync({});
-            setCurrentCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
-          }
-        } catch (e) {
-          console.warn('Map location fetch fallback');
-        }
-      })();
+    if (userCoords) {
+      setCurrentCoords(userCoords);
+    } else if (location) {
+      setCurrentCoords(location);
     }
-  }, [userCoords]);
+  }, [userCoords, location]);
+
+  const plotName = farmerProfile?.name ? `${farmerProfile.name}'s Farm` : 'South wheat plot';
+  const plotCoord = `${currentCoords.latitude.toFixed(4)}° N, ${currentCoords.longitude.toFixed(4)}° E`;
+  const plotArea = farmerProfile?.landArea ? `${farmerProfile.landArea} Acres` : '15.4 ha';
 
   if (showDetails) {
     return <FieldDetailsScreen onBack={() => setShowDetails(false)} />;
@@ -67,13 +66,13 @@ export default function GISMapScreen({ userCoords, onBack }) {
               style={styles.plotThumbnail}
             />
             <View style={styles.plotInfo}>
-              <Text style={styles.plotTitle}>South wheat plot</Text>
-              <Text style={styles.plotCoord}>49.5881° N, 34.5514° E</Text>
+              <Text style={styles.plotTitle}>{plotName}</Text>
+              <Text style={styles.plotCoord}>{plotCoord}</Text>
               
               <View style={styles.plotStats}>
                 <View style={styles.tag}>
                   <MapPin size={12} color="#1e3b2e" />
-                  <Text style={styles.tagText}>15.4 ha</Text>
+                  <Text style={styles.tagText}>{plotArea}</Text>
                 </View>
                 <TouchableOpacity onPress={() => setShowDetails(true)}>
                   <Text style={styles.fieldDetailsLink}>Field details</Text>

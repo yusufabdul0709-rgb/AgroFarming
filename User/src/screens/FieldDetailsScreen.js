@@ -8,10 +8,24 @@ import {
   LayoutGrid,
   Droplet,
   TrendingUp,
+  TrendingUp,
   MapPin
 } from 'lucide-react-native';
+import { useProfile } from '../context/ProfileContext';
 
 export default function FieldDetailsScreen({ onBack }) {
+  const { farmerProfile, farmTwin } = useProfile();
+  
+  const fieldName = farmTwin?.name || 'South wheat plot';
+  const gps = farmerProfile?.gpsLocation;
+  const lat = typeof gps === 'string' ? JSON.parse(gps)?.latitude : gps?.latitude;
+  const lng = typeof gps === 'string' ? JSON.parse(gps)?.longitude : gps?.longitude;
+  const latStr = lat ? `${lat.toFixed(4)}° N` : '49.5881° N';
+  const lngStr = lng ? `${lng.toFixed(4)}° E` : '34.5514° E';
+  const area = farmerProfile?.landArea ? `${farmerProfile.landArea} ha` : '15.4 ha';
+  const soilMoisture = farmTwin?.soilProfile?.moisture ? `${farmTwin.soilProfile.moisture}%` : '54%';
+  const maturity = farmTwin?.cropStatus?.growthPercentage ? `${farmTwin.cropStatus.growthPercentage}%` : '68%';
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -22,8 +36,8 @@ export default function FieldDetailsScreen({ onBack }) {
             <ArrowLeft size={20} color="#1e3b2e" />
           </TouchableOpacity>
           <View style={styles.headerTitles}>
-            <Text style={styles.title}>South wheat plot</Text>
-            <Text style={styles.subtitle}>49.5881° N, 34.5514° E</Text>
+            <Text style={styles.title}>{fieldName}</Text>
+            <Text style={styles.subtitle}>{latStr}, {lngStr}</Text>
           </View>
           <TouchableOpacity style={styles.iconButton}>
             <MoreHorizontal size={20} color="#1e3b2e" />
@@ -54,21 +68,21 @@ export default function FieldDetailsScreen({ onBack }) {
               <MapPin size={10} color="#7f8c8d" />
               <Text style={styles.statLabel}>Field area</Text>
             </View>
-            <Text style={styles.statValue}>15.4 ha</Text>
+            <Text style={styles.statValue}>{area}</Text>
           </View>
           <View style={styles.statCol}>
             <View style={styles.statLabelRow}>
               <Droplet size={10} color="#7f8c8d" />
               <Text style={styles.statLabel}>Soil moisture</Text>
             </View>
-            <Text style={styles.statValue}>54%</Text>
+            <Text style={styles.statValue}>{soilMoisture}</Text>
           </View>
           <View style={styles.statCol}>
             <View style={styles.statLabelRow}>
               <TrendingUp size={10} color="#7f8c8d" />
               <Text style={styles.statLabel}>Maturity level</Text>
             </View>
-            <Text style={styles.statValue}>68%</Text>
+            <Text style={styles.statValue}>{maturity}</Text>
           </View>
         </View>
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -8,14 +8,48 @@ import {
 } from 'react-native';
 import { Droplet, Info, Compass } from 'lucide-react-native';
 import { THEME } from '../context/ThemeContext';
+import useDeviceLocation from '../hooks/useDeviceLocation';
+import { API_BASE_URL } from '../config/api';
 
 export default function WaterIntelligenceScreen({ onBack }) {
+  const { location } = useDeviceLocation();
+  const [waterData, setWaterData] = useState(null);
+
+  useEffect(() => {
+    if (!location) return;
+    const fetchWater = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/ai/water`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ latitude: location.latitude, longitude: location.longitude })
+        });
+        if (res.ok) {
+          const json = await res.json();
+          setWaterData(json.data);
+        }
+      } catch (e) {
+        console.warn('Water AI fallback', e);
+      }
+    };
+    fetchWater();
+  }, [location]);
+
+  const score = waterData?.water_availability_score ?? 82;
+  const gwVal = waterData?.groundwater_depth ?? '12.4 m';
+  const rfVal = waterData?.rainfall_next_7_days ?? '45 mm';
+  const nrVal = waterData?.nearest_river_distance ?? '2.3 km';
+  const nlVal = waterData?.nearest_lake_distance ?? '3.8 km';
+  const cVal = waterData?.nearest_canal_distance ?? '1.6 km';
+  const recommendationTitle = waterData?.recommendation_title ?? 'Drip Irrigation';
+  const recommendationSub = waterData?.recommendation_sub ?? 'Will save 35% water and increase yield.';
+
   const waterResources = [
-    { label: 'Groundwater Level', val: '12.4 m', status: 'Good', color: '#4CAF50' },
-    { label: 'Rainfall (Next 7 Days)', val: '45 mm', status: 'Moderate', color: '#EAA013' },
-    { label: 'Nearest River', val: '2.3 km', status: '', color: '' },
-    { label: 'Nearest Lake', val: '3.8 km', status: '', color: '' },
-    { label: 'Canal Distance', val: '1.6 km', status: '', color: '' }
+    { label: 'Groundwater Level', val: gwVal, status: 'Good', color: '#4CAF50' },
+    { label: 'Rainfall (Next 7 Days)', val: rfVal, status: 'Moderate', color: '#EAA013' },
+    { label: 'Nearest River', val: nrVal, status: '', color: '' },
+    { label: 'Nearest Lake', val: nlVal, status: '', color: '' },
+    { label: 'Canal Distance', val: cVal, status: '', color: '' }
   ];
 
   return (
@@ -35,10 +69,10 @@ export default function WaterIntelligenceScreen({ onBack }) {
           <View style={styles.scoreTextSide}>
             <Text style={styles.scoreLabel}>Water Score</Text>
             <View style={styles.scoreValRow}>
-              <Text style={styles.scoreValBig}>82</Text>
+              <Text style={styles.scoreValBig}>{score}</Text>
               <Text style={styles.scoreValMuted}>/100</Text>
             </View>
-            <Text style={styles.scoreStatusText}>Good</Text>
+            <Text style={styles.scoreStatusText}>{score >= 70 ? 'Good' : 'Moderate'}</Text>
           </View>
           
           <View style={styles.dropletContainer}>
@@ -71,8 +105,8 @@ export default function WaterIntelligenceScreen({ onBack }) {
             <Droplet size={16} color={THEME.primary} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.recomTitle}>Drip Irrigation</Text>
-            <Text style={styles.recomSub}>Will save 35% water and increase yield.</Text>
+            <Text style={styles.recomTitle}>{recommendationTitle}</Text>
+            <Text style={styles.recomSub}>{recommendationSub}</Text>
           </View>
           <View style={styles.recomBadge}>
             <Text style={styles.recomBadgeText}>Recommended</Text>

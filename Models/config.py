@@ -4,7 +4,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # API Keys & Endpoints
-DATA_GOV_IN_API_KEY = os.getenv("DATA_GOV_IN_API_KEY", "579b464db66ec23bdd000001d31f51fc25b84a905683a33cfbf94268")
+OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY", "")
+DATA_GOV_IN_API_KEY = os.getenv("DATA_GOV_IN_API_KEY", "")
 SOILGRIDS_API_URL = os.getenv("SOILGRIDS_API_URL", "https://rest.isric.org/soilgrids/v2.0/properties/layers")
 OPEN_METEO_API_URL = os.getenv("OPEN_METEO_API_URL", "https://api.open-meteo.com/v1/forecast")
 AGMARKNET_PRICES_RESOURCE_ID = os.getenv("AGMARKNET_PRICES_RESOURCE_ID", "9ef84268-d588-465a-a308-a864a43d0070")

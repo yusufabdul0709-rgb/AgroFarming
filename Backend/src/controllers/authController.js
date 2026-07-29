@@ -31,7 +31,7 @@ export const registerOrLogin = async (req, res) => {
         preferredLanguage: preferredLanguage || 'English',
         village: 'Kalyanpur',
         district: 'Kanpur',
-        state: 'Uttar Pradesh',
+        state: '',
         gpsLocation: { latitude: 26.4499, longitude: 80.3319 },
         landArea: 2.5,
         landOwnership: 'Owned',
@@ -109,6 +109,19 @@ export const updateProfile = async (req, res) => {
   }
 };
 
+export const getProfile = async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const user = await User.findById(userId).select('-password').populate('farms');
+    if (!user) {
+      return res.status(404).json({ status: 'error', message: 'User profile not found' });
+    }
+    return res.json({ status: 'success', user });
+  } catch (error) {
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
 export const getAllFarmers = async (req, res) => {
   try {
     const farmers = await User.find({}).select('-password');
@@ -117,74 +130,24 @@ export const getAllFarmers = async (req, res) => {
     return res.status(500).json({ status: 'error', message: error.message });
   }
 };
-<<<<<<< HEAD
-=======
 
 export const syncProfile = async (req, res) => {
-  const supabaseId = req.user.id;
-  const { name, phone, preferredLanguage, gpsLocation, village, district, state } = req.body;
-
   try {
-    let user = await User.findById(supabaseId);
-
-    if (!user) {
-      // Create user profile in MySQL using the Supabase UUID
-      user = await User.create({
-        _id: supabaseId,
-        name: name || 'New Farmer',
-        phone: phone || '',
-        password: 'supabase_managed_auth', // dummy password since auth is handled by Supabase
-        preferredLanguage: preferredLanguage || 'English',
-        village: village || 'Kalyanpur',
-        district: district || 'Kanpur',
-        state: state || 'Uttar Pradesh',
-        gpsLocation: gpsLocation || { latitude: 26.4499, longitude: 80.3319 },
-        landArea: 2.5,
-        landOwnership: 'Owned',
-        soilType: 'Loamy',
-        irrigationSource: 'Canal',
-        waterAvailability: 'Moderate',
-        annualIncome: 95000,
-        category: 'General',
-        currentCrops: ['Paddy'],
-        previousCrops: ['Wheat'],
-        farmingExperience: 8
-      });
-
-      // Auto-create a Farm Twin entry
-      await Farm.create({
-        user: supabaseId,
-        soilProfile: { pH: 6.8, moisture: 48, nitrogen: 110, phosphorus: 38, potassium: 195 },
-        cropStatus: { cropName: 'Paddy', stage: 'Vegetative', growthPercentage: 35, estimatedYield: 4.2 }
-      });
-
-      console.log(`[Auth] Registered new farmer from Supabase: ${user.name} (${user.phone})`);
-    } else {
-      // Update existing user with new location if provided
-      let updatePayload = {};
-      let isUpdated = false;
-      if (gpsLocation && (user.gpsLocation?.latitude !== gpsLocation.latitude || user.gpsLocation?.longitude !== gpsLocation.longitude)) {
-        updatePayload.gpsLocation = gpsLocation;
-        user.gpsLocation = gpsLocation;
-        isUpdated = true;
-      }
-      if (village && user.village !== village) { updatePayload.village = village; user.village = village; isUpdated = true; }
-      if (district && user.district !== district) { updatePayload.district = district; user.district = district; isUpdated = true; }
-      if (state && user.state !== state) { updatePayload.state = state; user.state = state; isUpdated = true; }
-      
-      if (isUpdated) {
-        await User.findByIdAndUpdate(supabaseId, updatePayload);
-        console.log(`[Auth] Updated location for existing farmer: ${user.name}`);
-      }
+    const userId = req.user._id;
+    const syncData = req.body;
+    
+    if (syncData.password) {
+      const salt = await bcrypt.genSalt(10);
+      syncData.password = await bcrypt.hash(syncData.password, salt);
     }
-
-    return res.json({
-      status: 'success',
-      user
-    });
+    
+    const user = await User.findByIdAndUpdate(userId, syncData, { new: true }).select('-password');
+    if (!user) {
+      return res.status(404).json({ status: 'error', message: 'User profile not found' });
+    }
+    return res.json({ status: 'success', message: 'Profile synced successfully', user });
   } catch (error) {
     console.error('[Sync Profile Error]', error);
     return res.status(500).json({ status: 'error', message: error.message });
   }
 };
->>>>>>> 913d4a08a4505b68cefc5f0faab1c47713518e8d

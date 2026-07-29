@@ -23,6 +23,7 @@ import {
   CloudSun, 
   TrendingUp 
 } from 'lucide-react-native';
+import { useProfile } from '../context/ProfileContext';
 
 const LANGUAGES = [
   { id: 'en', label: 'English', flag: '🇬🇧' },
@@ -33,30 +34,34 @@ const LANGUAGES = [
   { id: 'mr', label: 'मराठी', flag: '🇮🇳' }
 ];
 
-const INITIAL_MESSAGES = {
+const getInitialMessages = (name) => ({
   en: [
-    { id: '1', sender: 'ai', text: "Hello Ramesh! I am Kissan Mitra AI. Ask me anything about your wheat crops, soil moisture, PM-Kisan subsidy, or weather predictions!" }
+    { id: '1', sender: 'ai', text: `Hello ${name}! I am Kissan Mitra AI. Ask me anything about your wheat crops, soil moisture, PM-Kisan subsidy, or weather predictions!` }
   ],
   hi: [
-    { id: '1', sender: 'ai', text: "नमस्ते रमेश! मैं किसान मित्र एआई हूँ। मुझसे अपनी गेहूं की फसल, मिट्टी की नमी, पीएम-किसान योजना या मौसम के बारे में कुछ भी पूछें!" }
+    { id: '1', sender: 'ai', text: `नमस्ते ${name}! मैं किसान मित्र एआई हूँ। मुझसे अपनी गेहूं की फसल, मिट्टी की नमी, पीएम-किसान योजना या मौसम के बारे में कुछ भी पूछें!` }
   ],
   te: [
-    { id: '1', sender: 'ai', text: "నమస్తే రమేష్! నేను కిసాన్ మిత్ర AI. మీ గోధుమ పంటలు, నేల తేమ, PM-కిసాన్ పథకం లేదా వాతావరణం గురించి ఏమైనా అడగండి!" }
+    { id: '1', sender: 'ai', text: `నమస్తే ${name}! నేను కిసాన్ మిత్ర AI. మీ గోధుమ పంటలు, నేల తేమ, PM-కిసాన్ పథకం లేదా వాతావరణం గురించి ఏమైనా అడగండి!` }
   ],
   ta: [
-    { id: '1', sender: 'ai', text: "வணக்கம் ரமேஷ்! நான் கிசான் மித்ரா AI. உங்கள் பயிர்கள், மண் ஈரம் அல்லது வானிலை பற்றி எதையும் கேளுங்கள்!" }
+    { id: '1', sender: 'ai', text: `வணக்கம் ${name}! நான் கிசான் மித்ரா AI. உங்கள் பயிர்கள், மண் ஈரம் அல்லது வானிலை பற்றி எதையும் கேளுங்கள்!` }
   ],
   pa: [
-    { id: '1', sender: 'ai', text: "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ ਰਮੇਸ਼! ਮੈਂ ਕਿਸਾਨ ਮਿੱਤਰ AI ਹਾਂ। ਆਪਣੀ ਫਸਲ, ਮਿੱਟੀ ਜਾਂ ਮੌਸਮ ਬਾਰੇ ਕੁਝ ਵੀ ਪੁੱਛੋ!" }
+    { id: '1', sender: 'ai', text: `ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ ${name}! ਮੈਂ ਕਿਸਾਨ ਮਿੱਤਰ AI ਹਾਂ। ਆਪਣੀ ਫਸਲ, ਮਿੱਟੀ ਜਾਂ ਮੌਸਮ ਬਾਰੇ ਕੁਝ ਵੀ ਪੁੱਛੋ!` }
   ],
   mr: [
-    { id: '1', sender: 'ai', text: "नमस्कार रमेश! मी किसान मित्र AI आहे. तुमच्या पिकांबद्दल, मातीबद्दल किंवा हवामानाबद्दल काहीही विचारा!" }
+    { id: '1', sender: 'ai', text: `नमस्कार ${name}! मी किसान मित्र AI आहे. तुमच्या पिकांबद्दल, मातीबद्दल किंवा हवामानाबद्दल काहीही विचारा!` }
   ]
-};
+});
 
 export default function AIFarmerChatScreen() {
+  const { farmerProfile } = useProfile();
+  const userName = farmerProfile?.name || 'Farmer';
+  const initialMessages = getInitialMessages(userName);
+
   const [selectedLang, setSelectedLang] = useState('en');
-  const [messages, setMessages] = useState(INITIAL_MESSAGES.en);
+  const [messages, setMessages] = useState(initialMessages.en);
   const [inputQuery, setInputQuery] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
@@ -87,7 +92,7 @@ export default function AIFarmerChatScreen() {
 
   const handleLanguageChange = (langId) => {
     setSelectedLang(langId);
-    setMessages(INITIAL_MESSAGES[langId] || INITIAL_MESSAGES.en);
+    setMessages(initialMessages[langId] || initialMessages.en);
   };
 
   const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.42:5000/api';

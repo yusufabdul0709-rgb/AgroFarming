@@ -102,7 +102,7 @@ export const updateFarmTwin = async (req, res) => {
         cropStatus: updateData.cropStatus || { cropName: 'Paddy', stage: 'Vegetative', growthPercentage: 35, estimatedYield: 4.2 }
       });
     } else {
-      farm = await Farm.findOneAndUpdate({ user: userId }, updateData, { new: true });
+      farm = await Farm.findOneAndUpdate({ user: userId }, updateData, { returnDocument: 'after' });
     }
 
     return res.json({ status: 'success', farm });

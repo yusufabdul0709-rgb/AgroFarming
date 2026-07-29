@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Sprout, MapPin, Eye, Compass, CloudRain, Shield } from 'lucide-react';
+
+const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL || 'http://localhost:5000';
 
 export default function Farmers() {
   const [farmers, setFarmers] = useState([
@@ -48,6 +50,18 @@ export default function Farmers() {
   ]);
 
   const [selectedFarmer, setSelectedFarmer] = useState(farmers[0]);
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/api/auth/farmers`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success' && data.data && data.data.length > 0) {
+          setFarmers(data.data);
+          setSelectedFarmer(data.data[0]);
+        }
+      })
+      .catch(err => console.warn('[Admin Farmers] Fetch fallback:', err.message));
+  }, []);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>

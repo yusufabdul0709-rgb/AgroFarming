@@ -1,0 +1,6 @@
+{
+  "crop_recommendation_accuracy": 0.9625,
+  "yield_prediction_r2": 0.8327,
+  "price_forecasting_r2": 0.9977,
+  "water_scoring_r2": 0.8998
+}

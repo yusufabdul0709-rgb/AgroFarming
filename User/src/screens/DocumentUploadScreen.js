@@ -177,7 +177,7 @@ export default function DocumentUploadScreen({ onBack }) {
     setIsProcessing(true);
     try {
       const token = await AsyncStorage.getItem('@farmer_token');
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.42:5000/api';
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:5000/api';
       
       const res = await fetch(`${API_URL}/vault/upload`, {
         method: 'POST',
@@ -242,7 +242,7 @@ export default function DocumentUploadScreen({ onBack }) {
     setIsSaving(true);
     try {
       const token = await AsyncStorage.getItem('@farmer_token');
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.42:5000/api';
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:5000/api';
       
       const res = await fetch(`${API_URL}/vault/document/${docId}`, {
         method: 'PUT',

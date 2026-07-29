@@ -25,18 +25,35 @@ export default function AIKB() {
     setShowAddForm(false);
   };
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (!searchQuery) {
       setTestResult('');
       return;
     }
-    const q = searchQuery.toLowerCase();
-    if (q.includes('paddy') || q.includes('water')) {
-      setTestResult('Matched ICAR Paddy Cultivation Manual & FAO Archives. Context: "Paddy is a water-intensive crop requiring 1200-1500 mm. AWD (Alternative Wetting Drying) decreases usage by 20-30%."');
-    } else if (q.includes('blight') || q.includes('disease')) {
-      setTestResult('Matched Late Blight Fungal Diagnostic Guide. Context: "Late Blight is caused by Phytophthora infestans. Spray Copper Oxychloride (2g/L) or neem extract."');
-    } else {
-      setTestResult('No direct matching article. Generating general context fallback.');
+    
+    try {
+      const response = await fetch(`${import.meta.env?.VITE_API_BASE_URL || 'http://localhost:5000'}/api/ai/rag`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: searchQuery })
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        setTestResult(data.data?.context || data.data?.response || data.message || JSON.stringify(data.data));
+      } else {
+        setTestResult('No direct matching article. Generating general context fallback.');
+      }
+    } catch (error) {
+      console.warn('[Admin AIKB] RAG search error:', error.message);
+      // Fallback behavior
+      const q = searchQuery.toLowerCase();
+      if (q.includes('paddy') || q.includes('water')) {
+        setTestResult('Matched ICAR Paddy Cultivation Manual & FAO Archives. Context: "Paddy is a water-intensive crop requiring 1200-1500 mm. AWD (Alternative Wetting Drying) decreases usage by 20-30%."');
+      } else if (q.includes('blight') || q.includes('disease')) {
+        setTestResult('Matched Late Blight Fungal Diagnostic Guide. Context: "Late Blight is caused by Phytophthora infestans. Spray Copper Oxychloride (2g/L) or neem extract."');
+      } else {
+        setTestResult('No direct matching article. Generating general context fallback.');
+      }
     }
   };
 
