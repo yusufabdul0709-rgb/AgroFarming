@@ -41,6 +41,7 @@ export default function DocumentUploadScreen({ onBack }) {
   const [isSaving, setIsSaving] = useState(false);
   const [metadata, setMetadata] = useState(null);
   const [docId, setDocId] = useState(null);
+  const [isLandDoc, setIsLandDoc] = useState(false);
 
   // Form states (Dropdown picks)
   const [selectedName, setSelectedName] = useState('Aadhaar Card');
@@ -188,7 +189,8 @@ export default function DocumentUploadScreen({ onBack }) {
         body: JSON.stringify({
           documentType: nameLabel || 'Uploaded File',
           format: detectedFormat || 'Image',
-          fileDataUrl: `data:image/jpeg;base64,${base64}`
+          fileDataUrl: `data:image/jpeg;base64,${base64}`,
+          isLandDoc: isLandDoc
         })
       });
       
@@ -219,7 +221,11 @@ export default function DocumentUploadScreen({ onBack }) {
         }
 
         // Map AI type to our selection options if matching
-        const matchedName = DOC_NAMES.find(n => n.toLowerCase() === docNameLower) || 'Aadhaar Card';
+        let matchedName = DOC_NAMES.find(n => n.toLowerCase() === docNameLower) || 'Aadhaar Card';
+        if (isLandDoc) {
+          matchedName = detectedType;
+          category = 'Land';
+        }
         
         setSelectedName(matchedName);
         setSelectedCategory(category);
@@ -286,6 +292,23 @@ export default function DocumentUploadScreen({ onBack }) {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {!imageUri && !fileName ? (
           <View style={styles.uploadOptions}>
+            {/* Land Doc Toggle Card */}
+            <TouchableOpacity 
+              style={[
+                styles.landDocToggle, 
+                { borderColor: isLandDoc ? THEME.primary : '#E5E7EB', backgroundColor: isLandDoc ? 'rgba(46, 125, 50, 0.05)' : '#F9FAFB' }
+              ]} 
+              onPress={() => setIsLandDoc(!isLandDoc)}
+            >
+              <View style={[styles.checkboxContainer, { borderColor: isLandDoc ? THEME.primary : '#9CA3AF', backgroundColor: isLandDoc ? THEME.primary : 'transparent' }]}>
+                {isLandDoc && <Text style={{ color: 'white', fontSize: 10, fontWeight: '900' }}>✓</Text>}
+              </View>
+              <View style={{ marginLeft: 12, flex: 1 }}>
+                <Text style={[styles.landDocToggleTitle, { color: THEME.text }]}>Land Document Mode</Text>
+                <Text style={styles.landDocToggleSub}>Extract legal ownership & plot details with Gemini</Text>
+              </View>
+            </TouchableOpacity>
+
             <Text style={[styles.instruction, { color: THEME.text }]}>
               Choose how you want to upload your document. We use AI to automatically read and secure it.
             </Text>
@@ -623,5 +646,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center'
   },
-  doneBtnText: { color: 'white', fontWeight: '800', fontSize: 15 }
+  doneBtnText: { color: 'white', fontWeight: '800', fontSize: 15 },
+  landDocToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderWidth: 1.5,
+    borderRadius: 16,
+    marginBottom: 20,
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.02,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  checkboxContainer: {
+    width: 20,
+    height: 20,
+    borderWidth: 1.5,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  landDocToggleTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  landDocToggleSub: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+    fontWeight: '600'
+  }
 });
