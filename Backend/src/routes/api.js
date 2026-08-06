@@ -1,5 +1,5 @@
 import express from 'express';
-import { registerOrLogin, updateProfile, getAllFarmers, syncProfile } from '../controllers/authController.js';
+import { registerOrLogin, updateProfile, getProfile, getAllFarmers, syncProfile } from '../controllers/authController.js';
 import { getFarmTwin, simulateTwin, getAllFarms, updateFarmTwin } from '../controllers/farmController.js';
 import { getPrices, getMarketplaceListings, createMarketplaceListing } from '../controllers/marketController.js';
 import { getEligibleSchemes, createScheme, getAllSchemes, matchSchemeVault } from '../controllers/schemeController.js';
@@ -14,6 +14,7 @@ export const apiRouter = express.Router();
 // Authentication / Farmers routes
 apiRouter.post('/auth/login', registerOrLogin);
 apiRouter.post('/auth/sync', authMiddleware, syncProfile);
+apiRouter.get('/auth/profile/:userId', authMiddleware, getProfile);
 apiRouter.put('/auth/profile/:userId', authMiddleware, updateProfile);
 apiRouter.get('/auth/farmers', getAllFarmers);
 
@@ -48,6 +49,7 @@ apiRouter.post('/ai/vision', handleAIVision);
 // AI Multi-Agent Chat routes
 apiRouter.post('/ai/chat', handleAIChat);
 
+// External API integrations
 import { getWeatherData, getSoilGrids, getNasaPower, getReverseGeocode, getAgmarknetPrices, getCropRecommendations } from '../controllers/externalApiController.js';
 
 // Weather Intelligence route
@@ -67,3 +69,42 @@ apiRouter.get('/market/agmarknet', getAgmarknetPrices);
 
 // Crop Recommendations
 apiRouter.get('/farm/recommendations', getCropRecommendations);
+
+// AI Microservice Gateway Endpoints (Python FastAPI Integration)
+import {
+  getAICropRecommendation,
+  getAIPricePrediction,
+  getAIYieldPrediction,
+  diagnoseAIDisease,
+  gradeAIMillet,
+  getAIWaterIntelligence,
+  matchAISchemes,
+  scanAIOCR,
+  processAIVoice,
+  queryAIRAG,
+  orchestrateMasterAI
+} from '../controllers/aiGatewayController.js';
+
+import { getSchemeReviewQueue, approveSchemeIngestion } from '../services/schemeIngestionService.js';
+
+apiRouter.post('/ai/crop-recommendation', getAICropRecommendation);
+apiRouter.post('/ai/price-prediction', getAIPricePrediction);
+apiRouter.post('/ai/yield', getAIYieldPrediction);
+apiRouter.post('/ai/disease', diagnoseAIDisease);
+apiRouter.post('/ai/millet', gradeAIMillet);
+apiRouter.post('/ai/water', getAIWaterIntelligence);
+apiRouter.post('/ai/schemes', matchAISchemes);
+apiRouter.post('/ai/ocr', scanAIOCR);
+apiRouter.post('/ai/voice', processAIVoice);
+apiRouter.post('/ai/rag', queryAIRAG);
+apiRouter.post('/ai/orchestrate', orchestrateMasterAI);
+
+// Scheme Ingestion Service endpoints
+apiRouter.get('/schemes/ingest/queue', getSchemeReviewQueue);
+apiRouter.post('/schemes/ingest/approve', approveSchemeIngestion);
+
+// Admin Dashboard Analytics endpoint
+import { getAdminDashboardAnalytics } from '../controllers/adminController.js';
+apiRouter.get('/admin/analytics', getAdminDashboardAnalytics);
+
+

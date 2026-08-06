@@ -1,17 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { ArrowLeft, FlaskConical, Sprout, CheckCircle2 } from 'lucide-react-native';
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.134:5000/api';
+import useDeviceLocation from '../hooks/useDeviceLocation';
+import { API_BASE_URL } from '../config/api';
 
 export default function SoilAnalyzerScreen({ onBack }) {
+  const { location } = useDeviceLocation();
   const [loading, setLoading] = useState(true);
   const [soilData, setSoilData] = useState(null);
 
   useEffect(() => {
+    if (!location) return;
     const fetchSoilGrids = async () => {
       try {
-        const res = await fetch(`${API_URL}/soil?latitude=17.6868&longitude=83.3088`);
+        const res = await fetch(`${API_BASE_URL}/soil?latitude=${location.latitude}&longitude=${location.longitude}`);
         if (res.ok) {
           const json = await res.json();
           setSoilData(json.data);
@@ -23,7 +25,13 @@ export default function SoilAnalyzerScreen({ onBack }) {
       }
     };
     fetchSoilGrids();
-  }, []);
+  }, [location]);
+
+  const healthScore = soilData?.health_index ?? 75;
+  const nVal = soilData?.nitrogen ?? 110;
+  const pVal = soilData?.phosphorus ?? 38;
+  const kVal = soilData?.potassium ?? 195;
+  const phVal = soilData?.ph ?? 6.8;
 
   return (
     <View style={styles.container}>
@@ -38,7 +46,7 @@ export default function SoilAnalyzerScreen({ onBack }) {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.healthCard}>
           <FlaskConical size={32} color="#b45309" />
-          <Text style={styles.scoreVal}>75 / 100</Text>
+          <Text style={styles.scoreVal}>{healthScore} / 100</Text>
           <Text style={styles.scoreLabel}>Soil Health Index: Good</Text>
           <Text style={styles.scoreSub}>Loamy soil with balanced pH and rich organic nitrogen.</Text>
         </View>
@@ -47,22 +55,22 @@ export default function SoilAnalyzerScreen({ onBack }) {
         <View style={styles.npkGrid}>
           <View style={styles.npkCard}>
             <Text style={styles.npkLabel}>Nitrogen (N)</Text>
-            <Text style={styles.npkVal}>110 kg/ha</Text>
+            <Text style={styles.npkVal}>{nVal} kg/ha</Text>
             <Text style={styles.npkStatus}>Sufficient</Text>
           </View>
           <View style={styles.npkCard}>
             <Text style={styles.npkLabel}>Phosphorus (P)</Text>
-            <Text style={styles.npkVal}>38 kg/ha</Text>
+            <Text style={styles.npkVal}>{pVal} kg/ha</Text>
             <Text style={styles.npkStatus}>Optimal</Text>
           </View>
           <View style={styles.npkCard}>
             <Text style={styles.npkLabel}>Potassium (K)</Text>
-            <Text style={styles.npkVal}>195 kg/ha</Text>
+            <Text style={styles.npkVal}>{kVal} kg/ha</Text>
             <Text style={styles.npkStatus}>High</Text>
           </View>
           <View style={styles.npkCard}>
             <Text style={styles.npkLabel}>pH Level</Text>
-            <Text style={styles.npkVal}>6.8 pH</Text>
+            <Text style={styles.npkVal}>{phVal} pH</Text>
             <Text style={styles.npkStatus}>Ideal</Text>
           </View>
         </View>

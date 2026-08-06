@@ -1,6 +1,6 @@
 import { orchestrateMultiAgentAI } from '../services/aiService.js';
 import { User } from '../models/User.js';
-
+import mongoose from 'mongoose';
 
 export const handleAIChat = async (req, res) => {
   const { prompt, userId, language } = req.body;
@@ -13,12 +13,8 @@ export const handleAIChat = async (req, res) => {
     let user = null;
     const isDbConnected = true;
 
-    if (userId) {
-      if (isDbConnected) {
-        user = await User.findById(userId);
-      } else {
-        user = null;
-      }
+    if (userId && mongoose.isValidObjectId(userId)) {
+      user = await User.findById(userId);
     }
 
     const aiResponse = await orchestrateMultiAgentAI(prompt, user, language || user?.preferredLanguage || 'English');

@@ -143,7 +143,10 @@ export default function SecretProfileScreen() {
             value={!isVaultLocked} 
             onValueChange={(val) => {
               if (val) {
-                if (!pinUnlocked) {
+                if (pinUnlocked || vaultPin === '1234' || vaultPin === '') {
+                  setPinUnlocked(true);
+                  setIsVaultLocked(false);
+                } else {
                   Alert.alert('Unlock Vault', 'Enter default PIN 1234 to view secret land records.');
                 }
               } else {

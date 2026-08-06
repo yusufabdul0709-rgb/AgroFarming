@@ -1,40 +1,61 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
   Text, 
   View, 
   ScrollView, 
-  TouchableOpacity 
+  TouchableOpacity,
+  ActivityIndicator
 } from 'react-native';
 import { Landmark, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { THEME } from '../context/ThemeContext';
+import { API_BASE_URL } from '../config/api';
 
 export default function SchemeFinderScreen({ onBack }) {
   const [expandedScheme, setExpandedScheme] = useState(null);
+  const [schemes, setSchemes] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const schemes = [
-    { 
-      id: 1, 
-      name: 'PM-KISAN Yojana', 
-      match: 'Match: 90%', 
-      category: 'Income Support', 
-      detail: 'Provides direct financial assistance of ₹6,000 per year in three equal installments directly into the bank accounts of small and marginal farmers.' 
-    },
-    { 
-      id: 2, 
-      name: 'Rythu Bandhu Scheme', 
-      match: 'Match: 85%', 
-      category: 'Financial Assistance', 
-      detail: 'Supports farmer investment for two crops a year by giving ₹5,000 per acre per season to buy inputs like seeds, fertilizers, and pesticides.' 
-    },
-    { 
-      id: 3, 
-      name: 'Soil Health Card Scheme', 
-      match: 'Match: 75%', 
-      category: 'Soil Testing', 
-      detail: 'Helps state governments to issue soil cards to all farmers, listing nutrient deficiencies and suggesting optimal chemical/organic fertilizer inputs.' 
-    }
-  ];
+  useEffect(() => {
+    const fetchSchemes = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/schemes/all`);
+        const result = await response.json();
+        if (result.status === 'success') {
+          setSchemes(result.data.schemes || []);
+        } else {
+          throw new Error('API failed');
+        }
+      } catch (e) {
+        setSchemes([
+          { 
+            id: 1, 
+            name: 'PM-KISAN Yojana', 
+            match: 'Match: 90%', 
+            category: 'Income Support', 
+            detail: 'Provides direct financial assistance of ₹6,000 per year in three equal installments directly into the bank accounts of small and marginal farmers.' 
+          },
+          { 
+            id: 2, 
+            name: 'Rythu Bandhu Scheme', 
+            match: 'Match: 85%', 
+            category: 'Financial Assistance', 
+            detail: 'Supports farmer investment for two crops a year by giving ₹5,000 per acre per season to buy inputs like seeds, fertilizers, and pesticides.' 
+          },
+          { 
+            id: 3, 
+            name: 'Soil Health Card Scheme', 
+            match: 'Match: 75%', 
+            category: 'Soil Testing', 
+            detail: 'Helps state governments to issue soil cards to all farmers, listing nutrient deficiencies and suggesting optimal chemical/organic fertilizer inputs.' 
+          }
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSchemes();
+  }, []);
 
   const toggleExpand = (id) => {
     if (expandedScheme === id) {
@@ -71,12 +92,15 @@ export default function SchemeFinderScreen({ onBack }) {
         {/* Schemes Found match */}
         <View style={styles.matchSummaryRow}>
           <Text style={styles.matchCountTitle}>Your Eligibility Match</Text>
-          <Text style={styles.matchCountSub}>3 Schemes Found</Text>
+          <Text style={styles.matchCountSub}>{schemes.length} Schemes Found</Text>
         </View>
 
         {/* Collapsible Accordion List */}
         <View style={styles.listContainer}>
-          {schemes.map(scheme => {
+          {loading ? (
+            <ActivityIndicator size="large" color={THEME.primary} style={{ marginTop: 20 }} />
+          ) : (
+            schemes.map(scheme => {
             const isExpanded = expandedScheme === scheme.id;
             return (
               <View key={scheme.id} style={styles.schemeCard}>
@@ -106,7 +130,7 @@ export default function SchemeFinderScreen({ onBack }) {
                 )}
               </View>
             );
-          })}
+          }))}
         </View>
 
         {/* Action Button */}

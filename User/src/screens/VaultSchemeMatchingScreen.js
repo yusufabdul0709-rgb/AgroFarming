@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Linking } from 'react-native';
 import { ArrowLeft, CheckCircle, XCircle, Clock, AlertCircle, FileText, ChevronRight, CheckSquare } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
+import { API_BASE_URL } from '../config/api';
 
 export default function VaultSchemeMatchingScreen({ onBack }) {
   const THEME = useTheme();
@@ -10,45 +11,60 @@ export default function VaultSchemeMatchingScreen({ onBack }) {
   const [selectedScheme, setSelectedScheme] = useState(null);
 
   useEffect(() => {
-    // Mocking API call to /api/schemes/vault-match
-    setTimeout(() => {
-      setSchemes([
-        {
-          _id: 's1',
-          name: 'PM-KISAN (Pradhan Mantri Kisan Samman Nidhi)',
-          benefits: '₹6,000 cash subsidy per annum',
-          readinessScore: 66,
-          presentDocs: ['Aadhaar Card', 'Bank Passbook'],
-          missingDocs: [
-            {
-              name: 'Land Record',
-              howToObtain: 'Visit the MRO / Tehsil Office with your Survey Number.',
-              expectedProcessingTimeDays: 14,
-              priority: 'High'
-            }
-          ],
-          smartTimeline: {
-            deadlineDaysRemaining: 30,
-            recommendation: 'You still have enough time. Collect missing documents first. Expected completion: within 14 days.'
-          },
-          application_link: 'https://pmkisan.gov.in/'
-        },
-        {
-          _id: 's2',
-          name: 'Crop Insurance Scheme',
-          benefits: 'Up to 90% premium subsidy',
-          readinessScore: 100,
-          presentDocs: ['Aadhaar Card', 'Bank Passbook'],
-          missingDocs: [],
-          smartTimeline: {
-            deadlineDaysRemaining: 15,
-            recommendation: 'Everything is Ready. Click Apply.'
-          },
-          application_link: 'https://pmfby.gov.in/'
+    const fetchVaultMatch = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/schemes/vault-match`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        const result = await response.json();
+        if (result.status === 'success') {
+          setSchemes(result.data.schemes || []);
+        } else {
+          throw new Error('API failed');
         }
-      ]);
-      setLoading(false);
-    }, 1500);
+      } catch (e) {
+        setSchemes([
+          {
+            _id: 's1',
+            name: 'PM-KISAN (Pradhan Mantri Kisan Samman Nidhi)',
+            benefits: '₹6,000 cash subsidy per annum',
+            readinessScore: 66,
+            presentDocs: ['Aadhaar Card', 'Bank Passbook'],
+            missingDocs: [
+              {
+                name: 'Land Record',
+                howToObtain: 'Visit the MRO / Tehsil Office with your Survey Number.',
+                expectedProcessingTimeDays: 14,
+                priority: 'High'
+              }
+            ],
+            smartTimeline: {
+              deadlineDaysRemaining: 30,
+              recommendation: 'You still have enough time. Collect missing documents first. Expected completion: within 14 days.'
+            },
+            application_link: 'https://pmkisan.gov.in/'
+          },
+          {
+            _id: 's2',
+            name: 'Crop Insurance Scheme',
+            benefits: 'Up to 90% premium subsidy',
+            readinessScore: 100,
+            presentDocs: ['Aadhaar Card', 'Bank Passbook'],
+            missingDocs: [],
+            smartTimeline: {
+              deadlineDaysRemaining: 15,
+              recommendation: 'Everything is Ready. Click Apply.'
+            },
+            application_link: 'https://pmfby.gov.in/'
+          }
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchVaultMatch();
   }, []);
 
   const handleApply = (scheme) => {

@@ -97,7 +97,7 @@ export default function MilletScannerScreen({ onBack }) {
   const runMilletScan = async (imageName, base64) => {
     setScanning(true);
     try {
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.134:5000/api';
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.42:5000/api';
       const headers = { 'Content-Type': 'application/json' };
       if (authToken) {
         headers['Authorization'] = `Bearer ${authToken}`;

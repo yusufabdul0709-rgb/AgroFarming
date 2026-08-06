@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -8,17 +8,55 @@ import {
 } from 'react-native';
 import { CloudSun, Sun, CloudRain, Wind, Droplet, Compass } from 'lucide-react-native';
 import { THEME } from '../context/ThemeContext';
+import { useProfile } from '../context/ProfileContext';
+import useDeviceLocation from '../hooks/useDeviceLocation';
+import { API_BASE_URL } from '../config/api';
 
 export default function WeatherScreen({ onBack }) {
-  const forecast = [
-    { day: 'Tue', date: '21 May', temp: '30° / 22°', rainChance: '10%', icon: <Sun size={18} color="#EAA013" /> },
-    { day: 'Wed', date: '22 May', temp: '31° / 23°', rainChance: '20%', icon: <CloudSun size={18} color="#EAA013" /> },
-    { day: 'Thu', date: '23 May', temp: '29° / 22°', rainChance: '40%', icon: <CloudRain size={18} color="#2196F3" /> },
-    { day: 'Fri', date: '24 May', temp: '28° / 21°', rainChance: '60%', icon: <CloudRain size={18} color="#2196F3" /> },
-    { day: 'Sat', date: '25 May', temp: '30° / 22°', rainChance: '10%', icon: <Sun size={18} color="#EAA013" /> },
-    { day: 'Sun', date: '26 May', temp: '32° / 23°', rainChance: '5%', icon: <Sun size={18} color="#EAA013" /> },
-    { day: 'Mon', date: '27 May', temp: '33° / 24°', rainChance: '5%', icon: <Sun size={18} color="#EAA013" /> }
+  const { farmerProfile } = useProfile();
+  const { location, address } = useDeviceLocation();
+  const [weatherData, setWeatherData] = useState(null);
+
+  const lat = location?.latitude || farmerProfile?.gpsLocation?.latitude || 17.3850;
+  const lon = location?.longitude || farmerProfile?.gpsLocation?.longitude || 78.4867;
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/weather?latitude=${lat}&longitude=${lon}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success' && data.data) {
+          setWeatherData(data.data);
+        }
+      })
+      .catch(err => console.warn('[WeatherScreen] Live weather fetch fallback:', err.message));
+  }, [lat, lon]);
+
+  const locationTitle = address?.formatted || [farmerProfile?.village, farmerProfile?.district].filter(Boolean).join(', ') || 'Rangareddy, Telangana';
+  const temp = weatherData?.temperature_c ? `${weatherData.temperature_c}°C` : '28°C';
+  const condition = weatherData?.weather_condition || 'Partly Cloudy';
+  const humidity = weatherData?.humidity_percent ? `${weatherData.humidity_percent}%` : '65%';
+  const wind = weatherData?.windspeed_kmh ? `${weatherData.windspeed_kmh} km/h` : '12 km/h';
+  const rain = weatherData?.rain_24h_mm ? `${weatherData.rain_24h_mm} mm` : '2.5 mm';
+
+  const defaultForecast = [
+    { day: 'Tue', date: 'Today', temp: '30° / 22°', rainChance: '10%', icon: <Sun size={18} color="#EAA013" /> },
+    { day: 'Wed', date: 'Tomorrow', temp: '31° / 23°', rainChance: '20%', icon: <CloudSun size={18} color="#EAA013" /> },
+    { day: 'Thu', date: 'Day 3', temp: '29° / 22°', rainChance: '40%', icon: <CloudRain size={18} color="#2196F3" /> },
+    { day: 'Fri', date: 'Day 4', temp: '28° / 21°', rainChance: '60%', icon: <CloudRain size={18} color="#2196F3" /> },
+    { day: 'Sat', date: 'Day 5', temp: '30° / 22°', rainChance: '10%', icon: <Sun size={18} color="#EAA013" /> }
   ];
+
+  const forecast = weatherData?.forecast_7days && weatherData.forecast_7days.length > 0
+    ? weatherData.forecast_7days.slice(0, 7).map((f, i) => ({
+        day: i === 0 ? 'Today' : (i === 1 ? 'Tmrw' : `Day ${i + 1}`),
+        date: f.dt_txt ? f.dt_txt.split(' ')[0].slice(5) : f.date || `Day ${i+1}`,
+        temp: `${f.temp_max_c || f.temp_c || 28}° / ${f.temp_min_c || f.temp_c || 22}°`,
+        rainChance: `${f.humidity || f.humidity_percent || 0}%`,
+        icon: (f.weather_condition || '').toLowerCase().includes('rain') ? <CloudRain size={18} color="#2196F3" /> : 
+              (f.weather_condition || '').toLowerCase().includes('cloud') ? <CloudSun size={18} color="#EAA013" /> : 
+              <Sun size={18} color="#EAA013" />
+      }))
+    : defaultForecast;
 
   return (
     <View style={styles.container}>
@@ -27,23 +65,23 @@ export default function WeatherScreen({ onBack }) {
         <TouchableOpacity style={styles.backBtn} onPress={onBack}>
           <Text style={styles.backText}>◀</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Weather</Text>
+        <Text style={styles.headerTitle}>Live Weather Intelligence</Text>
         <View style={{ width: 32 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Location & Date */}
         <View style={styles.locRow}>
-          <Text style={styles.locText}>Rajapur, Warangal</Text>
-          <Text style={styles.dateText}>Today, 20 May</Text>
+          <Text style={styles.locText}>{locationTitle}</Text>
+          <Text style={styles.dateText}>Live OpenWeatherMap Forecast</Text>
         </View>
 
         {/* Large Weather Card */}
         <View style={styles.weatherCard}>
           <View style={styles.weatherCardTop}>
             <View>
-              <Text style={styles.weatherTemp}>28°C</Text>
-              <Text style={styles.weatherCond}>Partly Cloudy</Text>
+              <Text style={styles.weatherTemp}>{temp}</Text>
+              <Text style={styles.weatherCond}>{condition}</Text>
             </View>
             <CloudSun size={56} color="white" />
           </View>
@@ -52,16 +90,16 @@ export default function WeatherScreen({ onBack }) {
           
           <View style={styles.weatherCardBottom}>
             <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Rain Chance</Text>
-              <Text style={styles.statVal}>20%</Text>
+              <Text style={styles.statLabel}>24h Rain</Text>
+              <Text style={styles.statVal}>{rain}</Text>
             </View>
             <View style={styles.statItem}>
               <Text style={styles.statLabel}>Humidity</Text>
-              <Text style={styles.statVal}>65%</Text>
+              <Text style={styles.statVal}>{humidity}</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Wind</Text>
-              <Text style={styles.statVal}>12 km/h</Text>
+              <Text style={styles.statLabel}>Wind Speed</Text>
+              <Text style={styles.statVal}>{wind}</Text>
             </View>
           </View>
         </View>

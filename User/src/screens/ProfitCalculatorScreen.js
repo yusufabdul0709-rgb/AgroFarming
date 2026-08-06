@@ -1,15 +1,60 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { ArrowLeft, Calculator, Coins, TrendingUp } from 'lucide-react-native';
+import { useProfile } from '../context/ProfileContext';
 
 export default function ProfitCalculatorScreen({ onBack }) {
-  const [acres, setAcres] = useState('15.4');
+  const { farmerProfile } = useProfile();
+  
+  const [acres, setAcres] = useState(farmerProfile?.landArea || '15.4');
   const [expectedPrice, setExpectedPrice] = useState('2450');
+  const [yieldMultiplier, setYieldMultiplier] = useState(30);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.42:5000/api';
+        
+        // Fetch market price
+        fetch(`${API_URL}/market/prices`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.status === 'success' && data.data && data.data.length > 0) {
+              const paddyData = data.data.find(item => item.commodity?.toLowerCase() === 'paddy' || item.commodity?.toLowerCase() === 'wheat');
+              if (paddyData && paddyData.price) {
+                setExpectedPrice(paddyData.price.toString());
+              }
+            }
+          }).catch(err => console.warn('Market price fetch failed:', err));
+
+        // Fetch yield prediction
+        fetch(`${API_URL}/ai/yield`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ crop: 'Paddy', land_acres: parseFloat(acres) || 1, soil_type: 'Alluvial', water_score: 80 })
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.status === 'success' && data.data?.yield_prediction) {
+              const parsedYield = parseFloat(data.data.yield_prediction.replace(/[^0-9.]/g, ''));
+              if (!isNaN(parsedYield) && parsedYield > 0) {
+                setYieldMultiplier(parsedYield);
+              }
+            }
+          }).catch(err => console.warn('Yield prediction fetch failed:', err));
+
+      } catch (err) {
+        console.warn('Profit calculator data error:', err);
+      }
+    };
+    
+    fetchData();
+  }, []);
 
   const acresNum = parseFloat(acres) || 1;
   const priceNum = parseFloat(expectedPrice) || 2000;
 
-  const totalYieldQtl = (acresNum * 30).toFixed(0);
+  const totalYieldQtl = (acresNum * yieldMultiplier).toFixed(0);
   const totalRevenue = (totalYieldQtl * priceNum);
   const inputCosts = (acresNum * 12000);
   const netProfit = (totalRevenue - inputCosts);

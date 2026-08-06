@@ -1,13 +1,73 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-// 1. Open-Meteo Weather & Soil
+// 1. Weather Data - OpenWeatherMap (primary) + Open-Meteo (fallback)
 export const getWeatherData = async (req, res) => {
   const { latitude, longitude } = req.query;
+  const OWM_KEY = process.env.OPENWEATHER_API_KEY || 'c08e560f4721f574beb679819eff458a';
+
+  // Try OpenWeatherMap first
+  try {
+    const [currentRes, forecastRes] = await Promise.all([
+      fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${OWM_KEY}&units=metric`),
+      fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&appid=${OWM_KEY}&units=metric`)
+    ]);
+
+    if (currentRes.ok && forecastRes.ok) {
+      const current = await currentRes.json();
+      const forecast = await forecastRes.json();
+
+      // Build 7-day forecast from 3-hour intervals (pick one per day)
+      const dailyMap = {};
+      for (const item of (forecast.list || [])) {
+        const day = item.dt_txt?.split(' ')[0];
+        if (day && !dailyMap[day]) {
+          dailyMap[day] = {
+            date: day,
+            dt_txt: item.dt_txt,
+            temp_max: item.main.temp_max,
+            temp_min: item.main.temp_min,
+            humidity: item.main.humidity,
+            description: item.weather?.[0]?.description || 'Clear',
+            icon: item.weather?.[0]?.icon || '01d',
+            rain_mm: item.rain?.['3h'] || 0,
+            wind_kmh: Math.round((item.wind?.speed || 0) * 3.6)
+          };
+        }
+      }
+      const forecast7days = Object.values(dailyMap).slice(0, 7);
+
+      return res.json({
+        status: 'success',
+        source: 'OpenWeatherMap',
+        data: {
+          temperature_c: Math.round(current.main?.temp * 10) / 10,
+          feels_like_c: Math.round(current.main?.feels_like * 10) / 10,
+          humidity_percent: current.main?.humidity,
+          pressure_hpa: current.main?.pressure,
+          wind_speed_kmh: Math.round((current.wind?.speed || 0) * 3.6),
+          wind_deg: current.wind?.deg,
+          weather_condition: current.weather?.[0]?.description?.replace(/\b\w/g, c => c.toUpperCase()) || 'Clear',
+          weather_icon: current.weather?.[0]?.icon || '01d',
+          rain_1h_mm: current.rain?.['1h'] || 0,
+          clouds_percent: current.clouds?.all || 0,
+          visibility_m: current.visibility || 10000,
+          sunrise: current.sys?.sunrise,
+          sunset: current.sys?.sunset,
+          city_name: current.name || '',
+          forecast_7days: forecast7days
+        }
+      });
+    }
+  } catch (owmErr) {
+    console.warn('[Weather] OpenWeatherMap failed, trying Open-Meteo:', owmErr.message);
+  }
+
+  // Fallback: Open-Meteo
   try {
     const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,rain,wind_speed_10m,soil_temperature_0cm,soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm,cloud_cover&current=temperature_2m,relative_humidity_2m,precipitation,rain,wind_speed_10m&forecast_days=16`);
     const data = await response.json();
-    return res.json({ status: 'success', data });
+    return res.json({ status: 'success', source: 'Open-Meteo', data });
   } catch (error) {
     return res.status(500).json({ status: 'error', message: error.message });
   }

@@ -82,11 +82,106 @@ export default function VaultScreen({ onBack, onNavigate }) {
   const [showEditCategoryList, setShowEditCategoryList] = useState(false);
   const [updating, setUpdating] = useState(false);
 
+  // Vault Auth states
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [hasPin, setHasPin] = useState(null);
+  const [pinMode, setPinMode] = useState('checking'); // checking, setup, confirm, enter, otp
+  const [tempPin, setTempPin] = useState('');
+  const [enteredPin, setEnteredPin] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+
+  const checkPin = async () => {
+    try {
+      const pin = await AsyncStorage.getItem('@vault_pin');
+      if (pin) {
+        setHasPin(true);
+        setPinMode('enter');
+      } else {
+        setHasPin(false);
+        setPinMode('setup');
+      }
+    } catch (e) {
+      setHasPin(false);
+      setPinMode('setup');
+    }
+  };
+
+  const handlePinPress = (num) => {
+    if (pinMode === 'otp') {
+      if (otpCode.length < 4) setOtpCode(prev => prev + num);
+      return;
+    }
+    if (enteredPin.length < 4) {
+      const newPin = enteredPin + num;
+      setEnteredPin(newPin);
+      if (newPin.length === 4) {
+        setTimeout(() => processPinSubmit(newPin), 150);
+      }
+    }
+  };
+
+  const handleDelete = () => {
+    if (pinMode === 'otp') setOtpCode(prev => prev.slice(0, -1));
+    else setEnteredPin(prev => prev.slice(0, -1));
+  };
+
+  const processPinSubmit = async (pin) => {
+    if (pinMode === 'setup') {
+      setTempPin(pin);
+      setEnteredPin('');
+      setPinMode('confirm');
+    } else if (pinMode === 'confirm') {
+      if (pin === tempPin) {
+        await AsyncStorage.setItem('@vault_pin', pin);
+        setHasPin(true);
+        setIsUnlocked(true);
+        Alert.alert('Success', 'Vault PIN set successfully!');
+      } else {
+        Alert.alert('Error', 'PINs do not match. Try again.');
+        setEnteredPin('');
+        setPinMode('setup');
+      }
+    } else if (pinMode === 'enter') {
+      const stored = await AsyncStorage.getItem('@vault_pin');
+      if (pin === stored) {
+        setIsUnlocked(true);
+        setEnteredPin('');
+      } else {
+        Alert.alert('Error', 'Incorrect PIN');
+        setEnteredPin('');
+      }
+    }
+  };
+
+  const handleOtpSubmit = () => {
+    if (otpCode === '1234') {
+      Alert.alert('Success', 'OTP verified. Please set a new PIN.');
+      setOtpCode('');
+      setEnteredPin('');
+      setPinMode('setup');
+    } else {
+      Alert.alert('Error', 'Invalid OTP. Use 1234 for testing.');
+      setOtpCode('');
+    }
+  };
+
+  const resetPinFlow = () => {
+    Alert.alert('Reset PIN', 'An OTP has been sent to your registered phone number.');
+    setPinMode('otp');
+    setOtpCode('');
+  };
+
+  const triggerChangePin = () => {
+    setPinMode('setup');
+    setIsUnlocked(false);
+    setEnteredPin('');
+  };
+
   const fetchDocuments = async (showLoadingIndicator = true) => {
     if (showLoadingIndicator) setLoading(true);
     try {
       const token = await AsyncStorage.getItem('@farmer_token');
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.134:5000/api';
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.42:5000/api';
       
       const res = await fetch(`${API_URL}/vault/documents`, {
         headers: {
@@ -106,6 +201,7 @@ export default function VaultScreen({ onBack, onNavigate }) {
   };
 
   useEffect(() => {
+    checkPin();
     fetchDocuments();
   }, []);
 
@@ -119,7 +215,7 @@ export default function VaultScreen({ onBack, onNavigate }) {
     setDecryptingDocId(doc._id);
     try {
       const token = await AsyncStorage.getItem('@farmer_token');
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.134:5000/api';
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.42:5000/api';
       
       const res = await fetch(`${API_URL}/vault/document/${doc._id}/decrypt`, {
         headers: {
@@ -151,7 +247,7 @@ export default function VaultScreen({ onBack, onNavigate }) {
     setUpdating(true);
     try {
       const token = await AsyncStorage.getItem('@farmer_token');
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.134:5000/api';
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.42:5000/api';
       
       const res = await fetch(`${API_URL}/vault/document/${decryptedMetadata._id}`, {
         method: 'PUT',
@@ -201,7 +297,7 @@ export default function VaultScreen({ onBack, onNavigate }) {
           onPress: async () => {
             try {
               const token = await AsyncStorage.getItem('@farmer_token');
-              const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.134:5000/api';
+              const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.42:5000/api';
               
               const res = await fetch(`${API_URL}/vault/document/${decryptedMetadata._id}`, {
                 method: 'DELETE',
@@ -261,11 +357,124 @@ export default function VaultScreen({ onBack, onNavigate }) {
     { name: 'Agriculture', icon: <Leaf size={20} color={selectedCategoryFilter === 'Agriculture' ? 'white' : '#10B981'} />, count: getCategoryCount('Agriculture') },
   ];
 
-  if (loading) {
+  if (pinMode === 'checking' || (loading && isUnlocked)) {
     return (
-      <View style={[styles.container, { backgroundColor: THEME.bg, justifyContent: 'center' }]}>
+      <View style={[styles.container, { backgroundColor: THEME.bg, justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color={THEME.primary} />
-        <Text style={{ marginTop: 10, color: THEME.textMuted, fontWeight: '700' }}>Unlocking Secure Vault...</Text>
+        <Text style={{ marginTop: 10, color: THEME.textMuted, fontWeight: '700' }}>
+          {pinMode === 'checking' ? 'Initializing Vault...' : 'Unlocking Secure Vault...'}
+        </Text>
+      </View>
+    );
+  }
+
+  const renderPinIndicator = (length) => {
+    const dots = [];
+    for (let i = 0; i < 4; i++) {
+      dots.push(
+        <View 
+          key={i} 
+          style={[
+            styles.pinDot, 
+            length > i && styles.pinDotFilled
+          ]} 
+        />
+      );
+    }
+    return <View style={styles.pinIndicatorContainer}>{dots}</View>;
+  };
+
+  const renderPinPad = () => {
+    const rows = [
+      [1, 2, 3],
+      [4, 5, 6],
+      [7, 8, 9],
+      ['blank', 0, 'delete']
+    ];
+    return (
+      <View style={styles.pinPad}>
+        {rows.map((row, rIdx) => (
+          <View key={rIdx} style={styles.pinRow}>
+            {row.map((btn, bIdx) => {
+              if (btn === 'blank') return <View key={bIdx} style={styles.pinBtn} />;
+              if (btn === 'delete') {
+                return (
+                  <TouchableOpacity key={bIdx} style={styles.pinBtn} onPress={handleDelete}>
+                    <X size={28} color="#D1D5DB" />
+                  </TouchableOpacity>
+                );
+              }
+              return (
+                <TouchableOpacity key={bIdx} style={styles.pinBtn} onPress={() => handlePinPress(btn)}>
+                  <Text style={styles.pinBtnText}>{btn}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ))}
+      </View>
+    );
+  };
+
+  if (!isUnlocked) {
+    return (
+      <View style={styles.lockContainer}>
+        <View style={styles.lockHeader}>
+          <TouchableOpacity onPress={onBack} style={styles.backButton}>
+            <ArrowLeft size={24} color="white" />
+          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.lockContent}>
+          <View style={styles.lockIconBox}>
+            <ShieldCheck size={50} color="#10B981" />
+          </View>
+
+          {pinMode === 'setup' && (
+            <>
+              <Text style={styles.lockTitle}>Setup Vault PIN</Text>
+              <Text style={styles.lockSub}>Create a 4-digit secure PIN</Text>
+              {renderPinIndicator(enteredPin.length)}
+              {renderPinPad()}
+            </>
+          )}
+
+          {pinMode === 'confirm' && (
+            <>
+              <Text style={styles.lockTitle}>Confirm PIN</Text>
+              <Text style={styles.lockSub}>Re-enter your 4-digit PIN</Text>
+              {renderPinIndicator(enteredPin.length)}
+              {renderPinPad()}
+            </>
+          )}
+
+          {pinMode === 'enter' && (
+            <>
+              <Text style={styles.lockTitle}>Unlock Vault</Text>
+              <Text style={styles.lockSub}>Enter your 4-digit PIN</Text>
+              {renderPinIndicator(enteredPin.length)}
+              {renderPinPad()}
+              <TouchableOpacity style={styles.forgotBtn} onPress={resetPinFlow}>
+                <Text style={styles.forgotBtnText}>Forgot PIN?</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {pinMode === 'otp' && (
+            <>
+              <Text style={styles.lockTitle}>Enter OTP</Text>
+              <Text style={styles.lockSub}>OTP sent to your phone (Use 1234)</Text>
+              {renderPinIndicator(otpCode.length)}
+              {renderPinPad()}
+              <TouchableOpacity style={styles.submitOtpBtn} onPress={handleOtpSubmit}>
+                <Text style={styles.submitOtpText}>Verify OTP</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.forgotBtn} onPress={() => {setPinMode('enter'); setOtpCode('');}}>
+                <Text style={styles.forgotBtnText}>Cancel</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
       </View>
     );
   }
@@ -278,7 +487,9 @@ export default function VaultScreen({ onBack, onNavigate }) {
           <ArrowLeft size={24} color="white" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Kissan Secure Vault</Text>
-        <ShieldCheck size={28} color="white" />
+        <TouchableOpacity onPress={triggerChangePin} style={{ padding: 4 }}>
+          <ShieldCheck size={28} color="white" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView 
@@ -650,6 +861,70 @@ export default function VaultScreen({ onBack, onNavigate }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  // Lock UI Styles
+  lockContainer: { flex: 1, backgroundColor: '#111827' },
+  lockHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 50,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  lockContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  lockIconBox: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  lockTitle: { fontSize: 24, fontWeight: '800', color: 'white', marginBottom: 8 },
+  lockSub: { fontSize: 14, color: '#9CA3AF', marginBottom: 32 },
+  pinIndicatorContainer: { flexDirection: 'row', gap: 16, marginBottom: 40 },
+  pinDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#4B5563',
+    backgroundColor: 'transparent'
+  },
+  pinDotFilled: {
+    borderColor: '#10B981',
+    backgroundColor: '#10B981',
+  },
+  pinPad: { width: '100%', maxWidth: 300 },
+  pinRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
+  pinBtn: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)'
+  },
+  pinBtnText: { fontSize: 28, fontWeight: '600', color: 'white' },
+  forgotBtn: { marginTop: 20, padding: 10 },
+  forgotBtnText: { color: '#10B981', fontSize: 14, fontWeight: '700' },
+  submitOtpBtn: {
+    marginTop: 10,
+    backgroundColor: '#10B981',
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 24
+  },
+  submitOtpText: { color: 'white', fontSize: 15, fontWeight: '800' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { ArrowLeft, TrendingUp, TrendingDown, Store, IndianRupee, RefreshCw } from 'lucide-react-native';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.134:5000/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.30.88.42:5000/api';
 
 export default function MarketIntelligenceScreen({ onBack }) {
   const [loading, setLoading] = useState(true);
@@ -20,7 +20,6 @@ export default function MarketIntelligenceScreen({ onBack }) {
       }
     } catch (e) {
       console.warn('Agmarknet fallback triggered', e);
-    } finally {
       // Set rich default mandis if API is loading/offline
       setPrices([
         { commodity: 'Paddy (Common)', market: 'Warangal Mandi', state: 'Telangana', max_price: '2450', trend: '+4.2%' },
@@ -29,6 +28,7 @@ export default function MarketIntelligenceScreen({ onBack }) {
         { commodity: 'Cotton (Long Staple)', market: 'Rajkot Mandi', state: 'Gujarat', max_price: '7100', trend: '+5.8%' },
         { commodity: 'Soyabean', market: 'Indore Mandi', state: 'Madhya Pradesh', max_price: '4850', trend: '+1.0%' },
       ]);
+    } finally {
       setLoading(false);
     }
   };

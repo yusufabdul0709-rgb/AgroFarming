@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -9,9 +9,56 @@ import {
 } from 'react-native';
 import { Sprout, Info, Check, Calendar, TrendingUp } from 'lucide-react-native';
 import { THEME } from '../context/ThemeContext';
+import { useProfile } from '../context/ProfileContext';
+import { API_BASE_URL } from '../config/api';
+import useDeviceLocation from '../hooks/useDeviceLocation';
 
 export default function CropRecommendationScreen({ onBack }) {
   const [activeTab, setActiveTab] = useState('Recommended');
+  const { farmerProfile } = useProfile();
+  const [recommendation, setRecommendation] = useState(null);
+  const { location } = useDeviceLocation();
+
+  const lat = location?.coords?.latitude || farmerProfile?.gpsLocation?.latitude || 17.3850;
+  const lon = location?.coords?.longitude || farmerProfile?.gpsLocation?.longitude || 78.4867;
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/ai/crop-recommendation`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        latitude: lat,
+        longitude: lon,
+        land_acres: farmerProfile?.landArea || 2.5
+      })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data?.status === 'success' && data.data) {
+          setRecommendation(data.data);
+        } else if (data.best_crop) {
+          setRecommendation(data);
+        }
+      })
+      .catch(err => console.warn('[CropRecScreen] AI prediction fallback:', err.message));
+  }, [lat, lon]);
+
+  const getActiveData = () => {
+    if (activeTab === 'Alternative Crops' && recommendation?.alternative_crops && recommendation.alternative_crops.length > 0) {
+        return recommendation.alternative_crops[0];
+    }
+    return recommendation || {};
+  };
+
+  const activeData = getActiveData();
+
+  const bestCrop = activeData.crop || activeData.best_crop || (activeTab === 'Alternative Crops' ? 'Maize' : 'Paddy (Swarna)');
+  const confidence = activeData.confidence_percent ? `${activeData.confidence_percent}%` : (activeTab === 'Alternative Crops' ? '85%' : '92%');
+  const expectedYield = activeData.expected_yield || (activeTab === 'Alternative Crops' ? '18-20 qtl/acre' : '20-22 qtl/acre');
+  const profit = activeData.estimated_profit || (activeTab === 'Alternative Crops' ? '₹38,000/acre' : '₹45,000/acre');
+  const waterReq = activeData.water_requirement_score ? `${activeData.water_requirement_score}/100` : (activeData.water_need || 'Medium');
+  const duration = activeData.duration_days ? `${activeData.duration_days} days` : '120-130 days';
+  const calendar = activeData.calendar || ['Jun', 'Jul', 'Aug', 'Sep'];
 
   return (
     <View style={styles.container}>
@@ -45,7 +92,7 @@ export default function CropRecommendationScreen({ onBack }) {
           <View style={styles.mainCardHeader}>
             <View style={{ flex: 1 }}>
               <Text style={styles.cardLabel}>Best Crop for Your Field</Text>
-              <Text style={styles.cropTitle}>Paddy (Swarna)</Text>
+              <Text style={styles.cropTitle}>{bestCrop}</Text>
               <View style={styles.badgeRow}>
                 <View style={[styles.badge, { backgroundColor: '#EBF8EE' }]}>
                   <Text style={[styles.badgeText, { color: THEME.primary }]}>Best Match</Text>
@@ -58,7 +105,7 @@ export default function CropRecommendationScreen({ onBack }) {
 
             {/* Circular matching score ring */}
             <View style={styles.scoreCircle}>
-              <Text style={styles.scoreNumber}>92%</Text>
+              <Text style={styles.scoreNumber}>{confidence}</Text>
               <Text style={styles.scoreLabel}>Match</Text>
             </View>
           </View>
@@ -86,26 +133,26 @@ export default function CropRecommendationScreen({ onBack }) {
         <View style={styles.summaryGrid}>
           <View style={styles.sumCell}>
             <Text style={styles.sumLabel}>Expected Yield</Text>
-            <Text style={styles.sumVal}>20-22 qtl/acre</Text>
+            <Text style={styles.sumVal}>{expectedYield}</Text>
           </View>
           <View style={styles.sumCell}>
             <Text style={styles.sumLabel}>Est. Profit</Text>
-            <Text style={[styles.sumVal, { color: THEME.primary }]}>₹45,000/acre</Text>
+            <Text style={[styles.sumVal, { color: THEME.primary }]}>{profit}</Text>
           </View>
           <View style={styles.sumCell}>
             <Text style={styles.sumLabel}>Water Need</Text>
-            <Text style={styles.sumVal}>Medium</Text>
+            <Text style={styles.sumVal}>{waterReq}</Text>
           </View>
           <View style={styles.sumCell}>
             <Text style={styles.sumLabel}>Duration</Text>
-            <Text style={styles.sumVal}>120-130 days</Text>
+            <Text style={styles.sumVal}>{duration}</Text>
           </View>
         </View>
 
         {/* Calendar timeline tracker */}
         <View style={styles.calendarHeaderRow}>
           <Text style={styles.sectionHeader}>Crop Calendar</Text>
-          <Text style={styles.dateLabel}>June - Oct 2024</Text>
+          <Text style={styles.dateLabel}>{calendar[0] || 'June'} - {calendar[calendar.length - 1] || 'Oct'} 2024</Text>
         </View>
 
         <View style={styles.timelineCard}>
@@ -114,25 +161,25 @@ export default function CropRecommendationScreen({ onBack }) {
           <View style={styles.timelineItemRow}>
             <View style={styles.timelineCell}>
               <View style={[styles.timelineNode, { backgroundColor: THEME.primary }]} />
-              <Text style={styles.timelineMonth}>Jun</Text>
+              <Text style={styles.timelineMonth}>{calendar[0] || 'Jun'}</Text>
               <Text style={styles.timelineStage}>Sowing</Text>
             </View>
 
             <View style={styles.timelineCell}>
               <View style={styles.timelineNode} />
-              <Text style={styles.timelineMonth}>Jul</Text>
+              <Text style={styles.timelineMonth}>{calendar[1] || 'Jul'}</Text>
               <Text style={styles.timelineStage}>Growth</Text>
             </View>
 
             <View style={styles.timelineCell}>
               <View style={styles.timelineNode} />
-              <Text style={styles.timelineMonth}>Aug</Text>
+              <Text style={styles.timelineMonth}>{calendar[2] || 'Aug'}</Text>
               <Text style={styles.timelineStage}>Flowering</Text>
             </View>
 
             <View style={styles.timelineCell}>
               <View style={styles.timelineNode} />
-              <Text style={styles.timelineMonth}>Sep</Text>
+              <Text style={styles.timelineMonth}>{calendar[3] || 'Sep'}</Text>
               <Text style={styles.timelineStage}>Harvest</Text>
             </View>
           </View>

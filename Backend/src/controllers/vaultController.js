@@ -1,4 +1,4 @@
-import { pool } from '../config/mysql.js';
+import { Document } from '../models/Document.js';
 import { encryptText, decryptText } from '../services/encryptionService.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { extractLandDocumentData } from '../services/landDocumentService.js';
@@ -8,15 +8,23 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 export const uploadDocument = async (req, res) => {
   const userId = req.user?.id || req.user?._id || req.body.userId;
+<<<<<<< HEAD
   const { category, documentType, fileDataUrl, isLandDoc } = req.body; // fileDataUrl is base64
+=======
+  const { category, documentType, fileDataUrl } = req.body;
+>>>>>>> 0fdb4ffbe2aad80660e21c0f3a4e04c40ac92ade
 
   if (!userId || !fileDataUrl || !documentType) {
     return res.status(400).json({ status: 'error', message: 'Missing required fields' });
   }
 
   try {
+<<<<<<< HEAD
     // Strip the "data:image/jpeg;base64," or other types part
     const base64String = fileDataUrl.replace(/^data:image\/\w+;base64,/, "").replace(/^data:application\/pdf;base64,/, "");
+=======
+    const base64String = fileDataUrl.replace(/^data:image\/\w+;base64,/, "");
+>>>>>>> 0fdb4ffbe2aad80660e21c0f3a4e04c40ac92ade
     
     let extractedMetadata = {};
     let documentNumber = '';
@@ -40,6 +48,7 @@ export const uploadDocument = async (req, res) => {
         } else if (fileDataUrl.startsWith('data:image/gif')) {
           ext = 'gif';
         }
+<<<<<<< HEAD
       }
       
       const tempDir = os.tmpdir();
@@ -55,6 +64,16 @@ export const uploadDocument = async (req, res) => {
         extractedMetadata.documentNumber = parsedData.location_details?.survey_number || 'LAND-DOC';
         extractedMetadata.documentType = parsedData.document_type || 'Land Document';
         
+=======
+      } catch (geminiError) {
+        console.error("Gemini AI OCR failed, falling back to mock extraction:", geminiError.message);
+        extractedMetadata = { 
+          name: 'Bevara Bhargav', 
+          dob: '10/03/2010', 
+          documentNumber: '8709 9203 5064',
+          documentType: documentType || 'Aadhaar Card'
+        };
+>>>>>>> 0fdb4ffbe2aad80660e21c0f3a4e04c40ac92ade
         documentNumber = extractedMetadata.documentNumber;
       } finally {
         try {
@@ -111,6 +130,7 @@ export const uploadDocument = async (req, res) => {
       }
     }
 
+<<<<<<< HEAD
     // 2. If database pool is not available (MOCK DB MODE), return success with metadata only
     if (!pool) {
       console.warn('[Vault] Database pool not available. Returning mock success response.');
@@ -134,10 +154,16 @@ export const uploadDocument = async (req, res) => {
     const expiryDate = isLandDoc
       ? null
       : (extractedMetadata.expiryDate ? new Date(extractedMetadata.expiryDate) : null);
+=======
+    const encryptedUrl = encryptText(fileDataUrl);
+    const issueDate = extractedMetadata.issueDate ? new Date(extractedMetadata.issueDate) : null;
+    const expiryDate = extractedMetadata.expiryDate ? new Date(extractedMetadata.expiryDate) : null;
+>>>>>>> 0fdb4ffbe2aad80660e21c0f3a4e04c40ac92ade
     const format = req.body.format || 'Image';
     const finalCategory = isLandDoc ? 'Land' : (category || 'Personal');
     const finalDocType = isLandDoc ? (extractedMetadata.documentType) : documentType;
 
+<<<<<<< HEAD
     const query = `
       INSERT INTO documents 
       (_id, user, category, documentType, documentNumber, extractedMetadata, encryptedUrl, issueDate, expiryDate, format) 
@@ -147,11 +173,24 @@ export const uploadDocument = async (req, res) => {
     await pool.query(query, [
       docId, userId, finalCategory, finalDocType, documentNumber, JSON.stringify(extractedMetadata), encryptedUrl, issueDate, expiryDate, format
     ]);
+=======
+    const newDoc = await Document.create({
+      user: userId,
+      category: category || 'Personal',
+      documentType,
+      documentNumber,
+      extractedMetadata,
+      encryptedUrl,
+      issueDate,
+      expiryDate,
+      format
+    });
+>>>>>>> 0fdb4ffbe2aad80660e21c0f3a4e04c40ac92ade
 
     res.json({
       status: 'success',
       message: 'Document uploaded and encrypted securely.',
-      documentId: docId,
+      documentId: newDoc._id,
       metadata: extractedMetadata
     });
 
@@ -168,18 +207,10 @@ export const getDocuments = async (req, res) => {
     return res.status(400).json({ status: 'error', message: 'Missing user ID' });
   }
 
-  if (!pool) {
-    return res.json({ status: 'success', documents: [], message: 'Database offline' });
-  }
-
   try {
-    const [rows] = await pool.query('SELECT _id, category, documentType, documentNumber, extractedMetadata, format, issueDate, expiryDate, createdAt FROM documents WHERE user = ? ORDER BY createdAt DESC', [userId]);
-    
-    // Parse JSON metadata
-    const documents = rows.map(row => ({
-      ...row,
-      extractedMetadata: row.extractedMetadata ? JSON.parse(row.extractedMetadata) : {}
-    }));
+    const documents = await Document.find({ user: userId })
+      .select('-encryptedUrl')
+      .sort({ createdAt: -1 });
 
     res.json({ status: 'success', documents });
   } catch (error) {
@@ -192,19 +223,14 @@ export const decryptDocument = async (req, res) => {
   const { id } = req.params;
   const userId = req.user?.id || req.user?._id || req.query.userId;
 
-  if (!pool) {
-    return res.status(503).json({ status: 'error', message: 'Database offline. Cannot decrypt documents.' });
-  }
-
   try {
-    const [rows] = await pool.query('SELECT encryptedUrl FROM documents WHERE _id = ? AND user = ?', [id, userId]);
+    const doc = await Document.findOne({ _id: id, user: userId });
     
-    if (rows.length === 0) {
+    if (!doc) {
       return res.status(404).json({ status: 'error', message: 'Document not found or access denied' });
     }
 
-    const encryptedData = rows[0].encryptedUrl;
-    const decryptedData = decryptText(encryptedData);
+    const decryptedData = decryptText(doc.encryptedUrl);
 
     res.json({ status: 'success', fileDataUrl: decryptedData });
   } catch (error) {
@@ -222,15 +248,21 @@ export const updateDocument = async (req, res) => {
     return res.status(401).json({ status: 'error', message: 'Unauthorized' });
   }
 
-  if (!pool) {
-    return res.json({ status: 'success', message: 'Document updated (database offline — not persisted).' });
-  }
-
   try {
-    await pool.query(
-      'UPDATE documents SET category = ?, documentType = ?, format = ? WHERE _id = ? AND user = ?',
-      [category || 'Personal', documentType || 'Aadhaar Card', format || 'Image', id, userId]
+    const updatedDoc = await Document.findOneAndUpdate(
+      { _id: id, user: userId },
+      { 
+        category: category || 'Personal', 
+        documentType: documentType || 'Aadhaar Card', 
+        format: format || 'Image' 
+      },
+      { returnDocument: 'after' }
     );
+
+    if (!updatedDoc) {
+      return res.status(404).json({ status: 'error', message: 'Document not found' });
+    }
+
     res.json({ status: 'success', message: 'Document updated successfully' });
   } catch (error) {
     console.error('[Vault Update Error]', error);
@@ -246,17 +278,10 @@ export const deleteDocument = async (req, res) => {
     return res.status(401).json({ status: 'error', message: 'Unauthorized' });
   }
 
-  if (!pool) {
-    return res.json({ status: 'success', message: 'Document deleted (database offline).' });
-  }
-
   try {
-    const [result] = await pool.query(
-      'DELETE FROM documents WHERE _id = ? AND user = ?',
-      [id, userId]
-    );
+    const deletedDoc = await Document.findOneAndDelete({ _id: id, user: userId });
     
-    if (result.affectedRows === 0) {
+    if (!deletedDoc) {
       return res.status(404).json({ status: 'error', message: 'Document not found or access denied' });
     }
     

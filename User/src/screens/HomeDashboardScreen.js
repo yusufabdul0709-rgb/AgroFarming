@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -31,13 +31,22 @@ import { THEME } from '../context/ThemeContext';
 import { useProfile } from '../context/ProfileContext';
 import MapboxAgriMap from '../components/MapboxAgriMap';
 import GlassCard from '../components/GlassCard';
+import useDeviceLocation from '../hooks/useDeviceLocation';
 
+import { API_BASE_URL } from '../config/api';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function HomeDashboardScreen({ onNavigateTo }) {
   const { farmerProfile } = useProfile();
+  const { location, address } = useDeviceLocation();
   const [showFullScreenMap, setShowFullScreenMap] = useState(false);
+  const [liveWeather, setLiveWeather] = useState(null);
+  const [aiDashboard, setAiDashboard] = useState(null);
+  const [soilData, setSoilData] = useState(null);
+  const [waterData, setWaterData] = useState(null);
+  const [cropData, setCropData] = useState(null);
+  const [marketData, setMarketData] = useState(null);
 
   // Parse gpsLocation safely
   let gpsLocation = farmerProfile?.gpsLocation;
@@ -49,16 +58,103 @@ export default function HomeDashboardScreen({ onNavigateTo }) {
     }
   }
 
-  const locationName = [farmerProfile?.village, farmerProfile?.district, farmerProfile?.state]
+  const lat = location?.latitude || gpsLocation?.latitude || 17.3850;
+  const lon = location?.longitude || gpsLocation?.longitude || 78.4867;
+
+  useEffect(() => {
+    // 1. Fetch live OpenWeatherMap weather
+    fetch(`${API_BASE_URL}/weather?latitude=${lat}&longitude=${lon}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success' && data.data) {
+          setLiveWeather(data.data);
+        }
+      })
+      .catch(err => console.warn('[HomeDashboard] Live weather fetch fallback:', err.message));
+
+    // 2. Fetch Soil
+    fetch(`${API_BASE_URL}/soil?latitude=${lat}&longitude=${lon}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success' && data.data) setSoilData(data.data);
+      })
+      .catch(err => console.warn('[HomeDashboard] Soil fetch fallback:', err.message));
+
+    // 3. Fetch Water
+    fetch(`${API_BASE_URL}/ai/water`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ latitude: lat, longitude: lon })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success' && data.data) setWaterData(data.data);
+      })
+      .catch(err => console.warn('[HomeDashboard] Water fetch fallback:', err.message));
+
+    // 4. Fetch Crop Recommendation
+    fetch(`${API_BASE_URL}/ai/crop-recommendation`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        latitude: lat, 
+        longitude: lon, 
+        land_acres: farmerProfile?.landArea || 2.5,
+        season: 'Kharif'
+      })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success' && data.data) setCropData(data.data);
+      })
+      .catch(err => console.warn('[HomeDashboard] Crop fetch fallback:', err.message));
+
+    // 5. Fetch Market Prices
+    fetch(`${API_BASE_URL}/market/agmarknet`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success' && data.data) setMarketData(data.data);
+      })
+      .catch(err => console.warn('[HomeDashboard] Market fetch fallback:', err.message));
+
+    // 6. Fetch Master AI Decision Engine Orchestration
+    fetch(`${API_BASE_URL}/ai/orchestrate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        latitude: lat,
+        longitude: lon,
+        land_acres: farmerProfile?.landArea || 2.5
+      })
+    })
+      .then(res => res.json())
+      .then(resData => {
+        if (resData.master_ai_dashboard) {
+          setAiDashboard(resData.master_ai_dashboard);
+        }
+      })
+      .catch(err => console.warn('[HomeDashboard] Master AI Orchestration fallback:', err.message));
+  }, [lat, lon]);
+
+  const locationName = address?.formatted || [farmerProfile?.village, farmerProfile?.district, farmerProfile?.state]
     .filter(Boolean)
-    .join(', ') || 'Visakhapatnam, Andhra Pradesh';
+    .join(', ') || 'Rangareddy, Telangana';
+
+  const tempVal = liveWeather?.temperature_c ? `${liveWeather.temperature_c}°C` : '28°C';
+  const weatherCond = liveWeather?.weather_condition || 'Sunny';
+  const waterScoreVal = waterData?.water_score ? `${waterData.water_score}/100` : (aiDashboard?.water_availability_score ? `${aiDashboard.water_availability_score}/100` : '82/100');
+  const soilHealthVal = soilData?.health_score ? `${soilData.health_score}/100` : '78/100';
+  const soilSub = soilData?.texture_class || 'Loamy';
+  const bestCropVal = cropData?.recommended_crop || aiDashboard?.best_crop || 'Paddy';
+  const marketPriceVal = marketData?.[0]?.modal_price ? `₹${marketData[0].modal_price}/qtl` : '₹2,450/qtl';
 
   const overviewStats = [
-    { key: 'weather', title: 'Weather', val: '28°C', sub: 'Partly Cloudy', icon: <CloudSun size={20} color="#EAA013" />, bg: '#FFF9EB' },
-    { key: 'water-intelligence', title: 'Water Score', val: '82/100', sub: 'Good', icon: <Droplet size={20} color="#2196F3" />, bg: '#EBF5FF' },
-    { key: 'soil-health', title: 'Soil Health', val: '75/100', sub: 'Good', icon: <Activity size={20} color="#4CAF50" />, bg: '#ECFDF0' },
-    { key: 'market-prices', title: 'Market Price', val: '₹2,450/qtl', sub: 'Paddy', icon: <Coins size={20} color="#795548" />, bg: '#F7F0EC' }
+    { key: 'weather', title: 'Weather', val: tempVal, sub: weatherCond, icon: <CloudSun size={20} color="#EAA013" />, bg: '#FFF9EB' },
+    { key: 'water-intelligence', title: 'Water Score', val: waterScoreVal, sub: 'AI Computed', icon: <Droplet size={20} color="#2196F3" />, bg: '#EBF5FF' },
+    { key: 'soil-health', title: 'Soil Health', val: soilHealthVal, sub: soilSub, icon: <Activity size={20} color="#4CAF50" />, bg: '#ECFDF0' },
+    { key: 'market-prices', title: 'Market Price', val: marketPriceVal, sub: bestCropVal, icon: <Coins size={20} color="#795548" />, bg: '#F7F0EC' }
   ];
+
 
   const quickAccessItems = [
     { key: 'secure-vault', title: 'Secure Vault', emoji: '🔐', color: '#F0F4FF' },
@@ -112,7 +208,7 @@ export default function HomeDashboardScreen({ onNavigateTo }) {
         {/* 3. Farmer Banner greeting card */}
         <View style={styles.farmerBanner}>
           <View style={styles.farmerBannerLeft}>
-            <Text style={styles.greetingText}>Good Morning, {farmerProfile.name || 'Ramesh'}!</Text>
+            <Text style={styles.greetingText}>Good Morning, {farmerProfile?.name || 'Ramesh'}!</Text>
             <Text style={styles.subGreetingText}>Let's make today productive.</Text>
             <TouchableOpacity 
               style={styles.askAiBtn} 

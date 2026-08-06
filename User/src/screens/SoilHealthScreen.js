@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -8,14 +8,44 @@ import {
 } from 'react-native';
 import { Activity, Leaf, ChevronRight } from 'lucide-react-native';
 import { THEME } from '../context/ThemeContext';
+import useDeviceLocation from '../hooks/useDeviceLocation';
+import { API_BASE_URL } from '../config/api';
 
 export default function SoilHealthScreen({ onBack }) {
+  const { location } = useDeviceLocation();
+  const [soilData, setSoilData] = useState(null);
+
+  useEffect(() => {
+    if (!location) return;
+    const fetchSoil = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/soil?latitude=${location.latitude}&longitude=${location.longitude}`);
+        if (res.ok) {
+          const json = await res.json();
+          setSoilData(json.data);
+        }
+      } catch (e) {
+        console.warn('Soil fetch fallback', e);
+      }
+    };
+    fetchSoil();
+  }, [location]);
+
+  const score = soilData?.health_index ?? 75;
+  const nVal = soilData?.nitrogen ?? 80;
+  const pVal = soilData?.phosphorus ?? 55;
+  const kVal = soilData?.potassium ?? 85;
+  const ocVal = soilData?.organic_carbon ?? 48;
+  const phVal = soilData?.ph ?? 6.8;
+  const soilType = soilData?.soil_type ?? 'Clay Loam';
+  const lastUpdated = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
   const nutrients = [
-    { name: 'Nitrogen (N)', status: 'Good', percentage: 80, color: '#4CAF50' },
-    { name: 'Phosphorus (P)', status: 'Medium', percentage: 55, color: '#EAA013' },
-    { name: 'Potassium (K)', status: 'Good', percentage: 85, color: '#4CAF50' },
-    { name: 'Organic Carbon', status: 'Medium', percentage: 48, color: '#EAA013' },
-    { name: 'pH Level', status: '6.8 (Optimal)', percentage: 90, color: '#4CAF50' }
+    { name: 'Nitrogen (N)', status: nVal > 70 ? 'Good' : 'Medium', percentage: nVal > 100 ? 100 : nVal, color: nVal > 70 ? '#4CAF50' : '#EAA013' },
+    { name: 'Phosphorus (P)', status: pVal > 70 ? 'Good' : 'Medium', percentage: pVal > 100 ? 100 : pVal, color: pVal > 70 ? '#4CAF50' : '#EAA013' },
+    { name: 'Potassium (K)', status: kVal > 70 ? 'Good' : 'Medium', percentage: kVal > 100 ? 100 : kVal, color: kVal > 70 ? '#4CAF50' : '#EAA013' },
+    { name: 'Organic Carbon', status: ocVal > 70 ? 'Good' : 'Medium', percentage: ocVal > 100 ? 100 : ocVal, color: ocVal > 70 ? '#4CAF50' : '#EAA013' },
+    { name: 'pH Level', status: `${phVal} (Optimal)`, percentage: 90, color: '#4CAF50' }
   ];
 
   return (
@@ -35,11 +65,11 @@ export default function SoilHealthScreen({ onBack }) {
           <View style={styles.scoreTextSide}>
             <Text style={styles.scoreLabel}>Overall Soil Health Score</Text>
             <View style={styles.scoreValRow}>
-              <Text style={styles.scoreValBig}>75</Text>
+              <Text style={styles.scoreValBig}>{score}</Text>
               <Text style={styles.scoreValMuted}>/100</Text>
             </View>
-            <Text style={styles.scoreStatusText}>Good</Text>
-            <Text style={styles.updatedText}>Last Updated: 20 May 2024</Text>
+            <Text style={styles.scoreStatusText}>{score >= 70 ? 'Good' : 'Moderate'}</Text>
+            <Text style={styles.updatedText}>Last Updated: {lastUpdated}</Text>
           </View>
           
           <View style={styles.ringContainer}>
@@ -69,7 +99,7 @@ export default function SoilHealthScreen({ onBack }) {
         {/* Soil Type */}
         <View style={styles.typeCard}>
           <Text style={styles.typeLabel}>Soil Type</Text>
-          <Text style={styles.typeVal}>Clay Loam</Text>
+          <Text style={styles.typeVal}>{soilType}</Text>
         </View>
 
         {/* Health tips */}
